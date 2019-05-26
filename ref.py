@@ -50,7 +50,7 @@ def getMember(mod, path):
     return member
 
 
-class RefBase(tako.Op):
+class RefBase(tako.Neuron):
     """
     --- @abstract
     -- Base nerve for all value references 
@@ -165,7 +165,6 @@ class SuperRef(RefBase):
         return False
 
 
-
 class ValRef(RefBase):
     
     def __init__(self, val, path, args):
@@ -183,7 +182,7 @@ class ValRef(RefBase):
         self._val = val
 
 
-class NerveRef(tako.Op, Owned, Child):
+class NerveRef(tako.Neuron, Owned, Child):
     def __init__(self, ref):
         super().__init__(ref)
         self._ref = mod(ref)
@@ -237,7 +236,7 @@ class Attribute(object):
 
 
 
-class Call(tako.Op, Owned, Child):
+class Call(tako.Neuron, Owned, Child):
     """
     --- Object to call a function that exists
     -- within a reference.
@@ -251,7 +250,7 @@ class Call(tako.Op, Owned, Child):
     @staticmethod
     def _prepare_arg(arg):
         if isinstance(arg, 'Placeholder') or is_refmeta(arg):
-            return mod(arg)
+            return tako.to_neuron(arg)
         else:
             return arg
     
@@ -270,7 +269,7 @@ class Call(tako.Op, Owned, Child):
         # it appears i do not need this
         # self._instance_method = instance_method
             
-    def __call__(self, x):
+    def __exec__(self, x):
         """
         @param input[1] - function to call
         @param input[2] - input
@@ -307,9 +306,6 @@ class Call(tako.Op, Owned, Child):
             _ = [_set_arg_owner(arg) for k, arg in self._kwargs.items()]
         else:
             return False
-    
-    def __nerve__(self):
-        return CallNerve(self)
 
     """
     def _get_loop_start(self):
@@ -425,7 +421,7 @@ class Placeholder(object):
             Attribute(key)
         )
         
-    def __call__(self, *args, **kwargs):
+    def __exec__(self, *args, **kwargs):
         self.__refindex__.append(
             Call(*args, **kwargs)
         )
@@ -521,7 +517,7 @@ class _Refmeta(object):
         self._refmeta_type = refmeta_type
         self._args = args or []
     
-    def __call__(self, *args, **kwargs):
+    def __exec__(self, *args, **kwargs):
         return self._refmeta_type(*self._args)(*args, **kwargs)
     
     def __getattr__(self, key):

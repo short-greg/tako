@@ -35,15 +35,41 @@ class Bot(object):
         pass
 
     def __call__(self, neuron):
-        if not self.has_visited(neuron)
+        if not self.has_visited(neuron):
             self._visit(neuron)
-            self.has_visited[neuron] = True
+            self._visited[neuron] = True
 
     def report(self):
         return {}
 
 
-def Call(Bot):
+class Warehouse(Bot):
+    """
+    
+    
+    
+    """
+    def __init__(self):
+        """
+        
+        """
+        self._informed = None
+        self.clear()
+    
+    def inform(self, key, val):
+        self._informed[key] = val
+    
+    def probe(self, key):
+        return self._informed.get(key)
+    
+    def reset(self):
+        self._informed = {}
+    
+    def uninform(self, key):
+        self._informed.pop(key)
+
+
+class Call(Bot):
     """
     --- Call is for creating a bot that 
     -- will call a member of a nerve that it
@@ -76,8 +102,8 @@ def Call(Bot):
     --
     """
     
-    def null_cond(self, neuron=None):
-        return True
+    def base_cond(self, neuron=None):
+        return hasattr(neuron, self._func_name)
 
     def base_process(self, neuron, results):
         self._results[neuron] = results
@@ -88,7 +114,7 @@ def Call(Bot):
     def __init__(self, func_name, args, kwargs, cond=None, process=None, report=None):
         super().__init__()
         self._func_name = func_name
-        self.cond = cond or self.null_cond
+        self.cond = cond or self.base_cond
         self.report = report or self.base_report
         self.process = process or self.base_process
         self._results = {}
@@ -97,11 +123,28 @@ def Call(Bot):
     
     def to_visit(self, neuron):
         if super().to_visit(neuron):
-            return self.cond(neuron):
+            return self.cond(neuron)
         return False
     
     def spawn(self):
         return Call(
             self._func_name, self._args, self.cond, self.process, self.report
         )
-  
+
+
+class _CallArgs(object):
+    
+    def __init__(self, func_name):
+        self.func_name = func_name
+    
+    def __call__(self, *args, **kwargs):
+        return Call(self.func_name, args=args, kwargs=kwargs)
+
+
+class _CallFunc(object):
+    
+    def __getattr__(self, k):
+        return _CallArgs(k)
+
+
+call = _CallFunc()
