@@ -1,4 +1,4 @@
-from __init__ import Neuron
+from __init__ import Neuron, to_neuron
 
 
 class Delay(Neuron):
@@ -67,12 +67,6 @@ class Diverge(Neuron):
     def bot_forward(self, bot):
         for n in self._modules:
             n.bot_forward(bot)
-
-    """
-    def send_backward(self, bot):
-        for n in self._modules:
-            n.send_backward(bot)
-    """
     
     def __exec__(self, x):
         """
@@ -130,12 +124,6 @@ class Gate(Neuron):
         
         return [passed, result]
 
-    """
-    def send_backward(self, bot):
-        self._cond.send_backward(bot)
-        self._mod.send_backward(bot)
-    """
-
 
 class Multi(Neuron):
     """
@@ -171,12 +159,6 @@ class Multi(Neuron):
     def bot_forward(self, bot):
         for n in self._modules:
             n.bot_forward(bot)
-
-    """
-    def send_backward(self, bot):
-        for n in self._modules:
-            n.send_backward(bot)
-    """
 
     def __exec__(self, x):
         result = []
@@ -226,11 +208,6 @@ class Repeat(Neuron):
 
     def bot_forward(self, bot):
         self._module.bot_forward(bot)
-
-    """
-    def send_backward(self, bot):
-        self._module.send_backward(bot)
-    """
 
 
 class Switch(Neuron):
@@ -296,12 +273,6 @@ class Switch(Neuron):
         else:
             return path, x[1]
 
-    """
-    def send_backward(self, bot):
-        self._router.send_backward(bot)
-        for n in self._modules:
-            n.send_backward(bot)
-    """
 
 class Case(Neuron):
     """
@@ -351,14 +322,6 @@ class Case(Neuron):
         if self._else is not None:
             return 'Else', self._else(x)
         return self.NO_OUTPUT
-    
-    """
-    def send_backward(self, bot):
-        self._router.send_backward(bot)
-        for n in self._modules:
-            n.send_backward(bot)
-        self._else.send_backward(bot)
-    """
 
 
 """
