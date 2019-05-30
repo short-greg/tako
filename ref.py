@@ -23,7 +23,7 @@ import __init__ as tako
 -- Input: Does an evaluation on the input that
 -- is passed in from the preceding nerve.
 -- My: Does an evaluation on the owner of the nerve
--- (the tako or table instance that the nerve belongs to)
+-- (the tako__ or table instance that the nerve belongs to)
 -- Val: Does an evaluation on a value that is passed
 -- into the nerve on construction
 -- Ref : refers to a value that is passed in upon
@@ -128,6 +128,22 @@ class Owned(object):
         else:
             return False
 
+"""
+y >> x >> Onto(my.z)
+
+z = 
+y = 
+
+nn.Linear(2, 2) >> oc.BotStore('<name>')
+oc.Emit(my.z)
+
+Diverge(
+ In_ >> y, 
+ Nil_ >> z
+)
+
+"""
+
 
 class MyRef(RefBase, Owned):
     """
@@ -182,17 +198,42 @@ class ValRef(RefBase):
         self._val = val
 
 
-class NerveRef(tako.Neuron, Owned, Child):
+class NeuronRef(tako.Neuron, Owned, Child):
     def __init__(self, ref):
         super().__init__(ref)
-        self._ref = mod(ref)
-        self._to_probe = True
+        self._ref = tako.to_neuron(ref)
+        # self._to_probe = True
     
-    def forward(self, x):
-        nerve = self._ref(x)
-        return nerve(x)
+    @property
+    def ref_key(self, x=None):
+        return self._ref(x).key
+    
+    def __exec__(self, x):
+        # exec not used here??
+        neuron = self.get_ref(x)
+        return neuron(x)
+        # neuron = self._ref(x)
+        # need to save the output in the bot somehow
+        # return neuron(x)
+    
+    def get_ref(self, x=None):
+        return self._ref(x)
+    
+    """
+    def __call__(self, x, bot=None):
+        # 
+        
+        neuron = self._ref(x)
+        neu_hash = hash(neuron)
+        if bot is not None and bot.output_informed(neu_hash):
+            return bot.probe_output(neu_hash)
+        y = neuron(x)
+        if bot is not None:
+            bot.inform_output(neu_hash, y)
+        return y
+    """
 
-    def internals(self):
+    def bot_forward(self):
         return [self._ref]
 
     """
@@ -216,7 +257,7 @@ class Idx(object):
     def __init__(self, key):
         self._key = key
         
-    def forward(self, x):
+    def __exec__(self, x):
         return x.__getitem__(self._key)
 
 
@@ -334,7 +375,7 @@ class Call(tako.Neuron, Owned, Child):
 -- access data within it
 --
 -- oc.super - Creates a reference to the 
--- super class/tako of the nerve
+-- super class/tako__ of the nerve
 -- in order to call its 
 -- oc.ref(value) - Creates a reference to the 
 -- value that gets passed in
@@ -437,7 +478,7 @@ class Placeholder(object):
       end
     """
 
-Placeholder.__rshift__ = nn.Module.__rshift__
+Placeholder.__rshift__ = tako.Neuron.__rshift___
 
 
 class EmissionPlaceholder(Placeholder):

@@ -1,6 +1,7 @@
 import numpy as np
 import math
-from __init__ import Op
+import __init__ as tako
+
 
 
 class Accessor(object):
@@ -95,20 +96,20 @@ class Iter(object):
         return self._idx == self._end
 
 
-class ToIter(Op):
+class ToIter(tako.Neuron):
     
     def __init__(self):
         super().__init__()
     
-    def __call__(self, x):
+    def __exec__(self, x):
         return Iter(x)
 
 
-class Iterate(Op):
+class Iterate(tako.Neuron):
     
     AT_END = tuple()
     
-    def __call__(self, x):
+    def __exec__(self, x):
         if not x.at_end():
             result = x.get()
             x.adv()

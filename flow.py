@@ -1,14 +1,30 @@
-from __init__ import Neuron, to_neuron
+from __init__ import Neuron, to_neuron, Strand, Arm
+
+
+def to_strand(neuron):
+    return Strand([neuron]).encapsulate()
 
 
 class Delay(Neuron):
     
-    def __init__(self, count=1, default=None, store_delay=False):
+    def __init__(self, count=1, default=None):
         assert count >= 1, 'The delay must be set to be greater than or equal to 1'
         self.default = default
         self.count = count
         self.vals = None
-        self.reset_vals()
+        self.reset()
+    
+    @property
+    def count(self):
+        return self._count
+    
+    @count.setter
+    def count(self, v):
+        assert v > 0, (
+            'The amount of delay must be ' +
+            'greater than 0.'
+        )
+        self._count = v
     
     def reset(self):
         self.vals = [self.default] * self.count
@@ -53,8 +69,9 @@ class Diverge(Neuron):
         -- @param streams.n - number of modules 
         -- (if not defined will be table.maxn of streams)
         """
+        print(args, n)
+        super().__init__()
         streams = args
-        super().__init__(self._DivergeStimulator())
         self._modules = []
         num_streams = len(streams)
         self._n = n or num_streams
@@ -104,10 +121,10 @@ class Gate(Neuron):
     --   nn.Linear(2, 2)
     -- )
     """
-    def __init__(self, cond=None, mod=None, pass_on=True):
+    def __init__(self, cond=None, neuron=None, pass_on=True):
         super().__init__()
-        self._cond = mod(cond)
-        self._mod = mod(mod)
+        self._cond = to_strand(cond)
+        self._neuron = to_strand(neuron)
         self._pass_on = pass_on
 
     def bot_forward(self, bot):
@@ -115,10 +132,10 @@ class Gate(Neuron):
         self._mod.bot_forward(bot)
 
     def __exec__(self, x):
-        passed = self._cond(x[0])
+        passed = self._cond(x[0]) == self._pass_on
         
-        if passed == self._pass_on:
-            result = self._mod(x[1])
+        if passed:
+            result = self._neuron(x[1])
         else:
             result = None
         
@@ -146,15 +163,19 @@ class Multi(Neuron):
     -- }
     """
     def __init__(self, n=None, *args):
-        super.__init__()
+        super().__init__()
         streams = args
         num_streams = len(streams) if args is not None else 0
-        self._n = n or len(args)
+        self._n = n or num_streams
+        assert num_streams <= self._n, (
+            'Cannot '
+        )
+        self._modules = []
         for i in range(self._n):
             if i < num_streams:
-                self._modules.insert(to_neuron(num_streams[i]))
+                self._modules.append(to_neuron(args[i]))
             else:
-                self._modules.insert(to_neuron(None))
+                self._modules.append(to_neuron(None))
 
     def bot_forward(self, bot):
         for n in self._modules:
@@ -164,6 +185,7 @@ class Multi(Neuron):
         result = []
         for cur_mod in self._modules:
             result.append(cur_mod(x))
+        return result
 
 
 class Repeat(Neuron):
@@ -182,6 +204,11 @@ class Repeat(Neuron):
     --             oc.ref.getResponse():eq('Finished')
     --        )
     """
+    
+    # TODO: How to send the bot forward through the network???
+    # Is this straightforward? Do I need to store the output
+    # at each time step? <- I think I don't...
+    # I just need to figure out how to use the delay functionality
     
     def __init__(self, mod, break_on=False, output_all=False):
         super().__init__()
@@ -255,9 +282,10 @@ class Switch(Neuron):
     """
     def __init__(self, router, *args, **kwargs):
         super().__init__()
-        self._router = router
-        self._modules = [mod(module) for module in args]
-        self._default = mod(kwargs.get('default'))
+        self._router = to_strand(router)
+        self._modules = [to_strand(module) for module in args]
+        default = kwargs.get('default')
+        self._default = to_strand(default) if default is not None else None
 
     def bot_forward(self, bot):
         self._router.bot_forward(bot)
@@ -266,7 +294,8 @@ class Switch(Neuron):
 
     def __exec__(self, x):
         path = self._router(x[0])
-        if path and self._modules[path]:
+        print(path)
+        if 0 <= path <= len(self._modules):
             return path, self._modules[path](x[1])
         elif self._default is not None:
             return path, self._default(x[1])
@@ -274,7 +303,7 @@ class Switch(Neuron):
             return path, x[1]
 
 
-class Case(Neuron):
+class Cases(Neuron):
     """
     --- Control module that sends the input
     -- through processes one by one 
@@ -282,11 +311,11 @@ class Case(Neuron):
     -- that output will become the output of
     -- the Case
     --
-    -- @usage oc.Case{
+    -- @usage oc.Cases(
     --   oc.Gate{p1, p2},
     --   oc.Gate{p3, p4},
     --   default=p5
-    -- }
+    -- )
     -- This Case will send through Gate1 and
     -- if its first output is true then it will 
     -- the {path, p2.output}
@@ -301,12 +330,12 @@ class Case(Neuron):
     
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self._modules = [to_neuron(module) for module in args]
-        self._else = kwargs.get('else')
+        self._modules = [to_strand(module) for module in args]
+        self._else = kwargs.get('else_')
         if self._else is not None:
-            self._else = mod(self._else)
+            self._else = to_neuron(self._else)
         self._break_on = kwargs.get('break_on', True)
-    
+
     def bot_forward(self, bot):
         for n in self._modules:
             n.bot_forward(bot)
@@ -317,7 +346,7 @@ class Case(Neuron):
         for i, module in enumerate(self._modules):
             output_ = module(x)
             if output_[0] == self._break_on:
-                return i, output_
+                return i, output_[1]
         
         if self._else is not None:
             return 'Else', self._else(x)
@@ -335,31 +364,194 @@ what if it's a reference?? <- This is a little more complcated
 
 """
 
-class MergeIn(Neuron):
-    def __init__(self, merge):
-        self._merge = merge
-    
-    def __call__(self, x):
-        return x
-
-
 class _Merge(Neuron):
+    """
+    
+    
+    """
     def __init__(self, *args):
         # NEED to think about this more
-        self._to_merge = [merge_in(arg, self) for arg in args]
+        self._to_merge = [to_strand(arg) for arg in args]
+    
+    """
+    def _get_output(self, neuron, bot):
+        y, exists = neuron.probe_output(bot)
+        
+        if not exists:
+            return neuron()
+        return y
+    """
 
 
 class Onto(_Merge):
-    
+    """
+    """
     def __exec__(self, x):
         return [
-            x, *[nerve.probe() for nerve in self._to_merge]
+            x, *[strand() for strand in self._to_merge]
         ]
 
 
 class Under(_Merge):
-    
+    """
+    """
     def __exec__(self, x):
         return [
-            *[nerve.probe() for nerve in self._to_merge], x
+            *[strand() for strand in self._to_merge], x
         ]
+
+
+# class Adapter(Neuron):
+    """
+    Need to think a little more about this... and the how to handle
+    the bot.. In flow nerves should a new bot be created??
+    I'm thinking bots should be managed by each of them
+    
+    In this will want to have different bots i think
+    I think it's okay actually
+    diverge(
+      my.x,
+      my.x,
+      my.y,
+      my.y
+    )
+    
+    flow.Adapter(
+      -- out must be in in
+      in_=[my.x, my.y, my.z], <- these must all be Arms/strands
+      out=[my.z] or my.z <- 
+
+      out_=[my.x, my.z], in_=[my.x, my.y, my.z]
+    )
+    
+    .. 
+    
+    <- have to check if two references are the same.....
+    <- storing the final output? <- this might make sense
+    
+
+    -- Not sure how to handle it for adapter yet
+    
+    bot.inform_extra <- can handle it in here <- inform what the bot is...
+
+
+    x >> y >> BotStore(use_incoming=True)
+    In_() >> z >> Onto() >> 
+    In_() >> z >> BotStore()
+    
+    
+    
+    Problems..How to deal with updating
+    """
+    """
+    def __init__(self, to_inform, to_probe):
+        self._to_inform = to_neuron(to_inform)
+        self._to_probe = to_neuron(to_probe)
+        
+        if type(to_inform) == 'list':
+            self.__exec__ = self._exec_list
+        else:
+            self.__exec__ = self._exec_value
+    
+    def _inform(self):
+        raise NotImplementedError('Inform method must be overwritten on construction.')
+    
+    def _probe(self):
+        raise NotImplementedError('Probe method must be overwritten on construction.')
+    
+    def _exec_value(self, x, bot):
+        self._to_inform(x)
+    
+    def _exec_list(self, x, bot):
+        # x = In_() >> merge(my.z)
+        # z = In_() >> Add(2)
+        
+        # call inform on each of the strands
+        # however.. do not want to execute any of them twice
+        # need to think about how to handle this
+        
+        # nerve ref <- can store the output in the bot??
+        
+        # diverge(my.x, my.x)
+        
+        my_hash = hash(self)
+        for xi in x:
+            if bot.informed_extra(my_hash, 'output'):
+                return bot.probe_extra(my_hash, 'output')
+            bot.inform_extra(hash(self), 'output', x)
+        
+        for to_inform, item in zip(self._to_inform, x):
+            to_inform(item)
+    
+    def __exec__(self, x):
+        raise NotImplementedError
+    """
+
+class BotInform(Neuron):
+    def __init__(self, neuronable, name='', use_neuron_key=True, auto_reset=True):
+        self._base = neuronable
+        self._strand = to_neuron(neuronable).encapsulate()
+        self._auto_reset = auto_reset
+        self._name = name
+        self._use_neuron_key = use_neuron_key
+
+    def __exec__(self, x):
+        return self._strand.forward(x)
+    
+    @property
+    def key(self):
+        result = self._name
+        if self._use_neuron_key is True:
+            return result + self._strand.key
+        return result
+
+    def __call__(self, x, bot):
+        if not self._auto_reset:
+            y, found = bot.probe(self.key)
+            if found:
+                return y
+        y = super().__call__(x, bot)
+        bot.inform(self.key, y)
+        return y
+
+
+class BotProbe(Neuron):
+    def __init__(self, ref, name='', default=None, use_neuron_key=True):
+        self._ref = to_neuron(ref)
+        self._name = name
+        self._use_neuron_key = use_neuron_key
+        self._default = default
+
+    def __exec__(self, x):
+        assert x is None, 'x should not be defined when executing bot probe'
+        return self._default
+    
+    @property
+    def key(self):
+        result = self._name
+        if self._use_neuron_key is True:
+            return result + self._ref.ref_key
+        return result
+
+    def __call__(self, x, bot):
+        y, found = bot.probe(self.key)
+        if found:
+            return y
+        return super().__call__(x, bot)
+
+
+class StoreOutput(Neuron):
+    def __init__(self, neuronable, default):
+        neuron = to_neuron(neuronable)
+        self._strand = Strand(neuron).encapsulate()
+        self.output = None
+        self._default = default
+        self.reset()
+    
+    def reset(self):
+        self.output = self._default
+    
+    def __exec__(self, x):
+        y = self._strand.forward(x)
+        self.output = y
+        return y

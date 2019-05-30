@@ -41,32 +41,47 @@ class Bot(object):
 
     def report(self):
         return {}
+    
+    def spawn(self):
+        NotImplementedError
 
 
 class Warehouse(Bot):
     """
     
     
+    TODO: need to figure out how to deal with the case
+    that a particular neuron is called by multiple 
+    -- I added in probe_output ... I'm not sure if this is a
+    -- good solution though because right now i am not setiting the output
+    How 
     
     """
+    NO_OUTPUT = None, None
+    
     def __init__(self):
         """
         
         """
         self._informed = None
-        self.clear()
-    
+        self.reset()
+
     def inform(self, key, val):
         self._informed[key] = val
     
-    def probe(self, key):
-        return self._informed.get(key)
-    
+    def probe(self, key, default=None):
+        if key not in self._informed:
+            return self._informed[key], True
+        return None, False
+        
     def reset(self):
         self._informed = {}
     
     def uninform(self, key):
         self._informed.pop(key)
+
+    def spawn(self):
+        return Warehouse()
 
 
 class Call(Bot):

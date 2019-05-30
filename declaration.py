@@ -1,5 +1,5 @@
 from flow import Stimulator, Neuron
-from __init__ import Op
+import __init__ as tako
 
 """
 import copy
@@ -34,6 +34,7 @@ class Tako(metaclass=_TakoMeta):
         # Need to loop over the bases and generate the arm accessors
 """
 
+"""
 class DeclarationStimulator(Stimulator):
     
     def __init__(self, op, fix_op=True):
@@ -45,16 +46,33 @@ class DeclarationStimulator(Stimulator):
             self.op = self.op.define(x)
             self.__call__ = super().__call__
         return self.op(x)
-
+"""
 
 class Declaration(Neuron):
+    """
     
-    def __init__(self, module_cls, fix_op=True, args, kwargs):
+    
+    Declaration will define a neural network
+    
+    """
+    
+    def __init__(self, module_cls, fix=False, *args, **kwargs):
         self.module_cls = module_cls
-        self.op = None
         self._args = args
         self._kwargs = kwargs
-        self._fix_op = fix_op
+        self._fix = fix
+        
+    # TODO: Refactor.. duplicating Stem
+    @staticmethod
+    def update_arg(arg, update_with):
+        if isinstance(arg, Arg):
+            return update_with[arg.key]
+        else:
+            return arg
+
+    def update_args(self, args, kwargs):
+        self._kwargs = {k: self.update_arg(arg, kwargs) for k, arg in self._kwargs.items()}
+        self._args = [self.update_arg(arg, args) for arg in self._args]
         
     def define(self, x=None):
         """
@@ -62,25 +80,25 @@ class Declaration(Neuron):
         """
         # need to have code to define a module in
         # here
-        return self.module_cls(*self._args, **self._kwargs)
+        return tako.to_neuron(self.module_cls(*self._args, **self._kwargs))
     
     def _replace(self, replace_with):
-        self.incoming.replace_outgoing(self, replace_with)
-        for outgoing in self.outgoing:
-            outgoing.incoming = self
+        self.incoming.outgoing = replace_with
+        self.outgoing.incoming = replace_with
+        replace_with.incoming = self.incoming
+        replace_with.outgoing = self.outgoing
+        self.incoming = None
+        self.outgoing = None
+        
 
-    def __call__(self, x):
-        op = self.define(x)
-        if self._fix_op:
-            neuron = to_neuron(op)
+    def __exec__(self, x):
+        neuron = self.define(x)
+        if self._fix:
             self._replace(neuron)
             
-        return op(x)
-    
-    def __neuron__(self):
-        return Neuron(self, DeclarationStimulator())
+        return neuron(x)
 
 
 @classmethod
-def declaration(cls):
-    return Declaration(cls)
+def decl(cls, *args, **kwargs):
+    return Declaration(cls, *args, **kwargs)

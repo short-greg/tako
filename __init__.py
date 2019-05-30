@@ -17,6 +17,10 @@ class Neuron(object):
         self.incoming = None
         self.outgoing = None
     
+    @property
+    def key(self):
+        return hash(self)
+    
     def visit(self, bot):
         return bot(self)
     
@@ -27,11 +31,7 @@ class Neuron(object):
         if self.visit(bot) and self.outgoing is not None:
             self.outgoing.bot_forward(bot)
     
-    def bot_backward(self, bot):
-        if self.visit(bot) and self.incoming is not None:
-            self.incoming.bot_backward(bot)
-    
-    def forward(self, x, bot):
+    def forward(self, x, bot=None):
         x = self(x, bot)
         if self.outgoing is not None:
             return self.outgoing.forward(x, bot)
@@ -59,15 +59,25 @@ class Neuron(object):
     
     def inform(self, x, bot=None):
         bot = bot or bot.Warehouse()
-        bot.inform(hash(self), x)
+        bot.inform_input(self.key, x)
         return bot
+    
+    def probe(self, bot=None):
+        if bot is not None and bot.output_informed(self.key):
+            return bot.probe_output(self.key)
+        
+        return None, False
     
     def __exec__(self, x):
         raise NotImplementedError
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x=None, bot=None):
         if bot is not None:
-            x = bot.probe(hash(self))
+            key = hash(self)
+            if bot.output_set(key):
+                return bot.probe_output(key)
+            x = bot.probe_input(key, x)
+            
         return self.__exec__(x)
 
 
@@ -88,9 +98,6 @@ class In_(Neuron):
     
     def _connect_incoming(self, other):
         raise AttributeError('An In flow cannot have any incoming neurons')
-    
-    def bot_backward(self, bot):
-        self.visit(bot)
     
     # def probe(self, bot):
     #    return self.x
@@ -131,6 +138,7 @@ class Out_(Neuron):
     def __exec__(self, x):
         return x
 
+
 class Nil_(In_):
     """
     Primarily a convenience for creating 'strands' with Emit Neurons
@@ -165,7 +173,7 @@ class Stimulator(object):
     """
     Stimulator is used to stimulate a particular operation
     in the op nerve
-    "I am not sure if it is still needed"
+    TODO: "I am not sure if it is still needed"
     
     """
     def __init__(self, op):
@@ -210,12 +218,124 @@ class Noop(Neuron):
     """
     Noop neurons do not perform any operation
     """
-    
     def spawn(self):
         return Noop()
     
     def __exec__(self, x):
         return x
+
+# TODO: Refactor.. duplicating Stem
+def update_arg(arg, *args, **kwargs):
+    if isinstance(arg, Arg):
+        return arg.update(*args, **kwargs)
+    else:
+        return arg
+
+
+class Arg(object):
+    """
+    
+    """
+
+    def __init__(self, key):
+        self._key = key
+
+    @property
+    def key(self):
+        return self._key
+    
+    def update(self, *args, **kwargs):
+        if type(self._key) == int:
+            return args[self._key]
+        else:
+            return kwargs[self._key]
+
+
+class _Arg(object):
+    """
+    
+    
+    """
+    def __getattribute__(self, key):
+        return Arg(key)
+
+    def __getitem__(self, key):
+        return Arg(key)
+
+
+arg = _Arg()
+
+# TODO: This is not right right now
+class Declaration(Neuron):
+    """
+    
+    
+    Declaration will define a neural network
+    
+    """
+    
+    def __init__(self, module_cls, args, kwargs, fix=False):
+        super().__init__()
+        self.module_cls = module_cls
+        self._args = args
+        self._kwargs = kwargs
+        self._fix = fix
+
+    def update_args(self, args, kwargs):
+        self._kwargs = {k: update_arg(arg, *args, **kwargs) for k, arg in self._kwargs.items()}
+        self._args = [update_arg(arg, *args, **kwargs) for arg in self._args]
+        
+    def define(self, x=None):
+        """
+        
+        """
+        # need to have code to define a module in
+        # here
+        print('Args, ', self._args)
+        return to_neuron(self.module_cls(*self._args, **self._kwargs))
+    
+    def _replace(self, replace_with):
+        if self.incoming:
+            self.incoming.outgoing = replace_with
+            replace_with.incoming = self.incoming
+        if self.outgoing:
+            self.outgoing.incoming = replace_with
+            replace_with.outgoing = self.outgoing
+        self.incoming = None
+        self.outgoing = None
+
+    def __exec__(self, x):
+        neuron = self.define(x)
+        if not self._fix:
+            self._replace(neuron)
+            
+        return neuron(x)
+
+
+def decl(cls, *args, **kwargs):
+    return Declaration(cls, args, kwargs)
+
+
+class Stem(object):
+    """
+    
+    """
+    
+    def __init__(self, cls, *args, **kwargs):
+        self._cls = cls
+        self._args = args
+        self._kwargs = kwargs
+    
+    def __call__(self, *args, **kwargs):
+        updated_kwargs = {k: self.update_arg(arg, kwargs) for k, arg in self._kwargs.items()}
+        updated_args = [update_arg(arg, *args, **kwargs) for arg in self._args]
+
+        # need to use a bot to update it for 
+        bot.call.update_arg(
+            cond=lambda x: isinstance(x, Declaration),
+            args=(args, kwargs)
+        )
+        return self._cls(*updated_args, **updated_kwargs)
 
 
 class Emit(Neuron):
@@ -235,9 +355,6 @@ class Emit(Neuron):
 
     def spawn(self):
         return Emit(self._to_emit)
-
-    def bot_backward(self, bot):
-        bot(self)
 
     def inform(self, x=None, bot=None):
         assert x is None, (
@@ -259,11 +376,6 @@ class Emit(Neuron):
     def __exec__(self, x):
         assert x is None, 'Emit Neurons must not take an input.'
         return self._to_emit
-        # raise NotImplementedError(
-        #    
-        #)
-        # if reference
-        # execute reference and return
 
 
 def to_neuron(x):
@@ -370,9 +482,6 @@ class Strand(object):
     def bot_forward(self, bot):
         self.lhs.bot_forward(bot)
     
-    def bot_backward(self, bot):
-        self.rhs.bot_backward(bot)
-    
     def spawn(self):
         cur = self.lhs
         ops = []
@@ -382,7 +491,7 @@ class Strand(object):
         ops.append(cur.spawn())
         return Strand(ops)
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x=None, bot=None):
         return self.lhs.forward(x, bot)
         # self.lhs.inform(x, bot)
         # return self.rhs.probe()
@@ -415,14 +524,8 @@ class Arm(Neuron):
         super().__init__()
         self.strand = strand.encapsulate()
 
-    def strand(self):
-        return self.strand
-
     def bot_forward(self, bot):
         self.strand.bot_forward(bot)
-    
-    def bot_backward(self, bot):
-        self.strand.bot_backward(bot)
 
     def __exec__(self, x):
         return self.strand(x)
@@ -430,6 +533,11 @@ class Arm(Neuron):
     def spawn(self):
         # Need to create this method
         return Arm(self.strand.spawn())
+    
+    @staticmethod
+    def from_neuron(neuron):
+        return Arm(Strand([neuron]))
+
 
 ######################################################
 #
@@ -472,13 +580,14 @@ def to_arm(val):
 def is_arm(v):
     return isinstance(v, Strand) or isinstance(v, Arm)
 
+
 class Tako(object, metaclass=_TakoType):
     """
     
     """
     class _TakoAttr(object):
         """
-        Helper class used by tako to control the arms
+        Helper class used by tako__ to control the arms
         owner and parent should be contained in the flow not the op
         
         """
@@ -534,7 +643,6 @@ class Tako(object, metaclass=_TakoType):
         instance = object.__new__(cls)
         cur = cls
         # The problem is in here
-        instance.x = 1
         instance.__armc__ = Tako._TakoAttr({}, instance, instance)
         prev_arm_controller = instance.__armc__
         while True:
@@ -543,7 +651,7 @@ class Tako(object, metaclass=_TakoType):
             prev_arm_controller = cur_arm_controller
 
             cur = cur.__base__
-            if not issubclass(cur, Tako) or cur != Tako:
+            if not (issubclass(cur, Tako) or cur == Tako):
                 break
 
         return instance
@@ -558,8 +666,7 @@ class Tako(object, metaclass=_TakoType):
                 return object.__getattribute__(self, '__armc__').getarm(k)
             return v
         except:
-            # Still need to check the
-            # class
+            # Still need to check the class
             pass
         
         cls = object.__getattribute__(self, '__class__')
