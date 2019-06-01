@@ -1,13 +1,6 @@
-"""
-require 'oc.pkg'
-require 'oc.class'
-require 'oc.oc'
-require 'oc.nerve'
-require 'oc.ops.table'
-require 'oc.strand'
-"""
-
 import __init__ as tako
+from __init__ import to_neuron
+
 
 
 """
@@ -34,20 +27,23 @@ import __init__ as tako
 -- like other nerves.
 """
 
-def getMember(mod, path):
-    """
-    --- Get the member for a module based on the path
-    -- @param mdo - Module to retrieve member from
-    -- @param path - string or {string}
-    -- @return member
-    """
-    if type(path) == 'string':
-        member = mod[path]
-    else:
-        member = mod
-        for p in path:
-            member = member[p]
-    return member
+class Attr(object):
+    
+    def __init__(self, key):
+        self._key = key
+        
+    def get(self, obj):
+        
+        return object.__getattribute__(obj, self._key)
+
+
+class Idx(object):
+    
+    def __init__(self, key):
+        self._key = key
+
+    def get(self, obj):
+        return obj[self._key]
 
 
 class RefBase(tako.Neuron):
@@ -62,54 +58,44 @@ class RefBase(tako.Neuron):
         -- @param path - path to access the value 
         -- {string} or strings
         """
-        super().__init(self)
-        self._path = path or {}
-    
-    
-    # TODO: Need to fix errors here
+        super().__init__()
+        self._path = path or []
+        self._base_val = None
+
     @staticmethod
-    def _getVal():
-        prevVal = val
+    def _get_val(path, val, x):
+        print(path, val, x)
+        prev_val = val
         for p in path:
-            if type(p) == 'oc.Call':
-                val = p({prevVal, input, prevPrevVal})
+            if type(p) == InCall:
+                val = p([prev_val, x])
             else:
-                val = prevVal[p]
-            prevPrevVal = prevVal
-            prevVal = val
+                val = p.get(prev_val)
+            prev_val = val
         return val
   
-    def forward(self, x):
+    def __exec__(self, x):
         path = self._path
         
-        if type(path) == 'string':
-            val = self._baseVal[path]
+        if type(path) == str:
+            val = self._base_val[path]
         else:
-            val = self._getVal(path, self._baseVal, x)
+            val = self._get_val(path, self._base_val, x)
         
         return val
 
-    """ 
-    --- TODO: I am not sure what to do here
-    function RefBase:probe(probeReferent)
-      probeReferent = probeReferent or true
-      if probeReferent then
-      end
-      return parent.probe(self)
-    end
-    """
 
 class EmissionRef(RefBase):
-    def forward(self, x):
-        self._baseVal = x
-        return super().forward(x)
+    def __exec__(self, x):
+        self._base_val = x
+        return super().__exec__(x)
 
 
 class Child(object):
     def __init__(self):
         self._super = None
     
-    def set_owner(self, super_):
+    def set_super(self, super_):
         if self._super is None:
             self._super = super_
             return True
@@ -141,7 +127,6 @@ Diverge(
  In_ >> y, 
  Nil_ >> z
 )
-
 """
 
 
@@ -158,9 +143,10 @@ class MyRef(RefBase, Owned):
     
     def set_owner(self, owner):
         if Owned.set_owner(self, owner):
+            print('Setting owner')
             self._base_val = owner
             for p in self._path:
-                if type(p) == 'Call':
+                if isinstance(p, InCall):
                     p.set_owner(owner)
             return True
         return False
@@ -175,7 +161,7 @@ class SuperRef(RefBase):
         if self._super is None:
             self._base_val = super_
             for p in self._path:
-                if type(p) == 'Call':
+                if isinstance(p, InCall):
                     p.set_super(super_)
             return True
         return False
@@ -183,7 +169,7 @@ class SuperRef(RefBase):
 
 class ValRef(RefBase):
     
-    def __init__(self, val, path, args):
+    def __init__(self, val, path, args=None):
         """
         --- @param val - the val to 
         -- @param path - path to access the value 
@@ -191,7 +177,8 @@ class ValRef(RefBase):
         -- @param args - Args to pass if a function  {} or nil
         -- (if args is nil will not call)
         """
-        super().__init__(path, args)
+        args = args or []
+        super().__init__(path)
         self._base_val = val
     
     def update_val(self, val):
@@ -200,7 +187,7 @@ class ValRef(RefBase):
 
 class NeuronRef(tako.Neuron, Owned, Child):
     def __init__(self, ref):
-        super().__init__(ref)
+        super().__init__()
         self._ref = tako.to_neuron(ref)
         # self._to_probe = True
     
@@ -209,51 +196,22 @@ class NeuronRef(tako.Neuron, Owned, Child):
         return self._ref(x).key
     
     def __exec__(self, x):
-        # exec not used here??
         neuron = self.get_ref(x)
         return neuron(x)
-        # neuron = self._ref(x)
-        # need to save the output in the bot somehow
-        # return neuron(x)
     
     def get_ref(self, x=None):
         return self._ref(x)
-    
-    """
-    def __call__(self, x, bot=None):
-        # 
-        
-        neuron = self._ref(x)
-        neu_hash = hash(neuron)
-        if bot is not None and bot.output_informed(neu_hash):
-            return bot.probe_output(neu_hash)
-        y = neuron(x)
-        if bot is not None:
-            bot.inform_output(neu_hash, y)
-        return y
-    """
 
     def bot_forward(self):
         return [self._ref]
 
-    """
-
-    --- @param toProbe - if set to false will not probe
-    function NerveRef:toProbe(toProbe)
-      self._toProbe = toProbe
-    end
-    """
 
 # TODO: Want to wrap ValRef with Emit... Emit(ValRef)  
 def r(ref):
-    return NerveRef(ref)
+    return NeuronRef(ref)
 
-
-
+"""
 class Idx(object):
-    """
-    
-    """
     def __init__(self, key):
         self._key = key
         
@@ -262,9 +220,6 @@ class Idx(object):
 
 
 class Attribute(object):
-    """
-    
-    """
     
     def __init__(self, key):
         self._key = key
@@ -274,10 +229,10 @@ class Attribute(object):
             return x.__getattribute__(x, self._key)
         else:
             return x.__getattribute__(self._key)
+"""
 
 
-
-class Call(tako.Neuron, Owned, Child):
+class InCall(tako.Neuron, Owned, Child):
     """
     --- Object to call a function that exists
     -- within a reference.
@@ -288,44 +243,40 @@ class Call(tako.Neuron, Owned, Child):
     -- to use if a selfCall
     -- @output The output of the function
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        Owned.__init__(self)
+        Child.__init__(self)
+        self._args = [self._prepare_arg(arg) for arg in args]
+        self._kwargs = {k: self._prepare_arg(arg) for k, arg in kwargs}
+        # not sure if i need this????
+        # it appears i do not need this
+        # self._instance_method = instance_method
+
     @staticmethod
     def _prepare_arg(arg):
-        if isinstance(arg, 'Placeholder') or is_refmeta(arg):
+        if isinstance(arg, Placeholder) or is_refmeta(arg):
             return tako.to_neuron(arg)
         else:
             return arg
     
     @staticmethod
     def _output_arg(arg, x):
-        if isinstance(arg, 'oc.RefBase'):
-            return arg(x[2])
+        if isinstance(arg, RefBase):
+            return arg(x[1])
         else:
             return arg
 
-    def __init__(self, *args, **kwargs):
-        self._args = [self._prepare_arg(arg) for arg in args]
-        self._kwargs = {k: self._prepare_arg(arg) for k, arg in kwargs}
-        
-        # not sure if i need this????
-        # it appears i do not need this
-        # self._instance_method = instance_method
-            
     def __exec__(self, x):
         """
-        @param input[1] - function to call
-        @param input[2] - input
-        @param input[3] - 'self' if it is a self call
+        @param input[0] - function to call
+        @param input[1] - input
         """
         args_output = [self._output_arg(arg, x) for arg in self._args]
         kwargs_output = {k: self._output_arg(arg, x) for k, arg in self._kwargs.items()}
-        
-        if self._instance_method:
-            return x[0](
-                x[2], *args_output, **kwargs_output
-            )
-        else:
-            return x[0](*args_output, **kwargs_output)
-    
+        return x[0](*args_output, **kwargs_output)
+
     def set_super(self, super_):
         def _set_arg_super(arg):
             if isinstance(arg, Child):
@@ -339,23 +290,36 @@ class Call(tako.Neuron, Owned, Child):
     
     def set_owner(self, owner):
         def _set_arg_owner(arg):
-            if isinstance(arg, Child):
-                arg.set_super(owner)
-
-        if Child.set_owner(self, owner):
+            if isinstance(arg, Owned):
+                arg.set_owner(owner)
+        if Owned.set_owner(self, owner):
             _ = [_set_arg_owner(arg) for arg in self._args]
             _ = [_set_arg_owner(arg) for k, arg in self._kwargs.items()]
         else:
             return False
 
+
+class Call(InCall):
     """
-    def _get_loop_start(self):
-        if self._instance_method:
-            return 1
-        else:
-            return 0
+    --- Calls a member method
+    -- In a sense it combines 'InCall' and 'Emit'
+    -- @input {function, input, [object]}
+    -- input is the input into the ref
+    -- object is the object that contains the function
+    -- to use if a selfCall
+    -- @output The output of the function
     """
 
+    def __init__(self, f, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._f = f
+
+    def __exec__(self, x):
+        """
+        @param input[0] - function to call
+        @param input[1] - input
+        """
+        return super().__exec__((self._f, x))
 
 
 """
@@ -446,31 +410,36 @@ class Placeholder(object):
         -- if DEFINED
         -- @param params._refType 
         """
-        pass
-        # self.__refindex__ = params.index or []
+        self.__refindex__ = []
 
     def __str__(self):
-        return 'Placeholder: %s to %s ' % type(self), self.__refindex__
+        return 'Placeholder: %s ' % type(self)
 
     def __getitem__(self, key):
         self.__refindex__.append(
             Idx(key)
         )
+        return self
     
     def __getattr__(self, key):
         self.__refindex__.append(
-            Attribute(key)
+            Attr(key)
         )
+        return self
         
-    def __exec__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         self.__refindex__.append(
-            Call(*args, **kwargs)
+            InCall(*args, **kwargs)
         )
-    
+        return self
+
     @classmethod
     def __refmeta__(cls):
         raise NotImplementedError
     
+    def __neuron__(self):
+        raise NotImplementedError 
+
     """
         if not oc.isInstance(self) then
           rawset(self, index, val)
@@ -478,7 +447,7 @@ class Placeholder(object):
       end
     """
 
-Placeholder.__rshift__ = tako.Neuron.__rshift___
+Placeholder.__rshift__ = tako.Neuron.__rshift__
 
 
 class EmissionPlaceholder(Placeholder):
@@ -492,7 +461,7 @@ class EmissionPlaceholder(Placeholder):
     -- oc.ref(x)(oc.input) will pass the input
     -- into the function x as an argument.
     """
-    def __nerve__(self):
+    def __neuron__(self):
         return EmissionRef(self.__refindex__)
     
     def __refmeta__(self):
@@ -510,10 +479,10 @@ class MyPlaceholder(Placeholder):
     -- input as the second argument
     -- and Tako's member 'x' as the third.
     """
-    def __nerve__(self):
-        return MyRef(self.__refindex)
+    def __neuron__(self):
+        return MyRef(self.__refindex__)
 
-    def __refMeta__(self):
+    def __refmeta__(self):
         return my
 
 
@@ -531,12 +500,12 @@ class ValPlaceholder(Placeholder):
           --- @constructor 
           -- @param val - The value to access
         """
-        super().__init()
+        super().__init__()
         self.__ref__ = val
 
-    def __nerve__(self):
+    def __neuron__(self):
         return ValRef(
-            self.__ref.__, self.__refindex__
+            self.__ref__, self.__refindex__
         )
 
     def __refmeta__(self):
@@ -545,7 +514,7 @@ class ValPlaceholder(Placeholder):
 
 class SuperPlaceholder(Placeholder):
     
-    def __nerve__(self):
+    def __neuron__(self):
         return SuperRef(self.__refindex__)
     
     def __refmeta__(self):
@@ -567,20 +536,23 @@ class _Refmeta(object):
     def __getitem__(self, key):
         return self._refmeta_type(*self._args).__getitem__(key)
     
-    def __nerve__(self):
-        raise self._refmeta_type
+    def __neuron__(self):
+        return to_neuron(self._refmeta_type(*self._args))
 
 
 class _Valrefmeta(_Refmeta):
     
     def __init__(self, val):
-        super().__init__(ValPlaceholder, val)
-        
+        super().__init__(ValPlaceholder, [val])
+
 
 my = _Refmeta(MyPlaceholder)
 emission = _Refmeta(EmissionPlaceholder)
 super_ = _Refmeta(SuperPlaceholder)
-ref = _Valrefmeta
+
+def ref(val):
+    return _Valrefmeta(val)
+
 
 
 def is_refmeta(val):

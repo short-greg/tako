@@ -218,8 +218,7 @@ class TestUnder(object):
             tako.Emit(1)
         )
 
-    def test_under_output_with_one(self):
-        
+    def test_under_output_with_one(self):  
         under = flow.Under(
             tako.Nil_() >> tako.Emit(1)
         )

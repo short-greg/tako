@@ -72,16 +72,11 @@ class Neuron(object):
         raise NotImplementedError
     
     def __call__(self, x=None, bot=None):
-        if bot is not None:
-            key = hash(self)
-            if bot.output_set(key):
-                return bot.probe_output(key)
-            x = bot.probe_input(key, x)
-            
+        print('Calling ', type(self))
         return self.__exec__(x)
 
 
-class In_(Neuron):
+class _In(Neuron):
     """
     Used for convenience to create a strand where the following objects are
     'ops' so that those ops will properly be converted to neurons
@@ -94,7 +89,7 @@ class In_(Neuron):
         super().__init__()
     
     def spawn(self):
-        return In_()
+        return _In()
     
     def _connect_incoming(self, other):
         raise AttributeError('An In flow cannot have any incoming neurons')
@@ -112,7 +107,7 @@ class In_(Neuron):
         return x
 
 
-class Out_(Neuron):
+class _Out(Neuron):
     """
     Used for convenience to create a strand where the following objects are
     'ops' so that those ops will properly be converted to neurons
@@ -121,7 +116,7 @@ class Out_(Neuron):
         super().__init__()
     
     def spawn(self):
-        return Out_()
+        return _Out()
     
     def _connect_outgoing(self, other):
         raise AttributeError('An In flow cannot have any incoming neurons')
@@ -139,7 +134,7 @@ class Out_(Neuron):
         return x
 
 
-class Nil_(In_):
+class _Nil(_In):
     """
     Primarily a convenience for creating 'strands' with Emit Neurons
     This is used as the starting flow for the case where there
@@ -149,7 +144,7 @@ class Nil_(In_):
         super().__init__()
     
     def spawn(self):
-        return Nil_()
+        return _Nil()
     
     def _connect_incoming(self, other):
         raise AttributeError('A "Nil" flow cannot have any incoming neurons')
@@ -167,6 +162,31 @@ class Nil_(In_):
     def __exec__(self, x):
         assert x is None, 'The input to a Nil flow must be None'
         return x
+    
+class _InCreator(object):
+    
+    def __rshift__(self, other):
+        return _In() >> other
+
+
+in_ = _InCreator()
+
+
+class _OutCreator(object):
+    
+    def __rshift__(self, other):
+        return _Out() >> other
+
+out_ = _OutCreator()
+
+
+class _NilCreator(object):
+    
+    def __rshift__(self, other):
+        return _Nil() >> other
+
+
+nil_ = _NilCreator()
 
 
 class Stimulator(object):
@@ -393,6 +413,7 @@ def to_neuron(x):
         object intoa flow
         """
         return x.__neuron__()
+
     if x is None:
         """
         
@@ -418,11 +439,8 @@ class Strand(object):
     """
     def __init__(self, neurons):
         assert len(neurons) > 0, 'There must be more than one operation'
-        # self.lhs = ops[0]
-        # self.rhs = ops[-1]
         self.lhs, self.rhs = self._connect_ops(neurons)
-        # self.ops = [to_neuron(op) for op in ops]
-    
+
     def _connect_ops(self, neurons):
         """
         Links a list of ops together in order to form a 'strand'
@@ -466,13 +484,13 @@ class Strand(object):
         self.lhs = lhs
 
     def encapsulate(self, left_nil=False):
-        if not isinstance(self.rhs, Out_):
-            self.append(Out_())
-        if not isinstance(self.lhs, In_):
+        if not isinstance(self.rhs, _Out):
+            self.append(_Out())
+        if not isinstance(self.lhs, _In):
             if not left_nil:
-                self.prepend(In_())
+                self.prepend(_In())
             else:
-                self.prepend(Nil_())
+                self.prepend(_Nil())
         
         return self
 
@@ -703,7 +721,7 @@ if __name__ == '__main__':
         return x + 1
     
     class X(Tako):
-        strand = In_() >> t
+        strand = in_ >> t
         
     class YType(type):
         

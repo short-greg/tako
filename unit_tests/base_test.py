@@ -115,7 +115,7 @@ class TestDeclaration(object):
         def op(x):
             return x + 1
 
-        strand = (tako.In_() >> tako.decl(tako.OpNeuron, op)).encapsulate()
+        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op)).encapsulate()
         result = strand(1)
 
         assert result == 2, (
@@ -126,7 +126,7 @@ class TestDeclaration(object):
         def op(x):
             return x + 1
 
-        strand = (tako.In_() >> tako.decl(tako.OpNeuron, op)).encapsulate()
+        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op)).encapsulate()
         strand(1)
         result = strand(1)
 
@@ -195,7 +195,7 @@ class TestEmit(object):
 class TestArm(object):
     
     def test_convert_strand_to_arm(self):
-        arm = (tako.In_() >> (lambda x: x + 1)).arm()
+        arm = (tako.in_ >> (lambda x: x + 1)).arm()
         assert arm(0) == 1, (
             'The output of emit should be 1'
         )
@@ -203,7 +203,7 @@ class TestArm(object):
     def test_convert_arm_to_strand(self):
         def f(x):
             return x + 1
-        strand = (tako.In_() >> f).arm().strand
+        strand = (tako.in_ >> f).arm().strand
         assert strand(0) == 1, (
             'The output of emit should be 1'
         )
@@ -213,7 +213,7 @@ class TestTako(object):
     
     def test_use_arm_in_class(self):
         class _T(tako.Tako):
-            s = tako.In_() >> (lambda x: x + 1)
+            s = tako.in_ >> (lambda x: x + 1)
         
         t = _T()
         assert t.s(1) == 2, (
@@ -222,7 +222,7 @@ class TestTako(object):
 
     def test_use_arm_in_super_class(self):
         class _T(tako.Tako):
-            s = tako.In_() >> (lambda x: x + 1)
+            s = tako.in_ >> (lambda x: x + 1)
         
         class _S(_T):
             pass
