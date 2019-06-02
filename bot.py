@@ -70,9 +70,9 @@ class Warehouse(Bot):
         self._informed[key] = val
     
     def probe(self, key, default=None):
-        if key not in self._informed:
+        if key in self._informed:
             return self._informed[key], True
-        return None, False
+        return default, False
         
     def reset(self):
         self._informed = {}

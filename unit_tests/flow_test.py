@@ -1,6 +1,8 @@
 import __init__ as tako
 import flow
 import pytest
+import bot
+import ref
 
 
 class TestDelay(object):
@@ -194,7 +196,7 @@ class TestOnto(object):
     def test_onto_output_with_one(self):
         
         onto = flow.Onto(
-            tako.Nil_() >> tako.Emit(1)
+            tako.nil_ >> tako.Emit(1)
         )
         assert onto(2) == (
             [2, 1]
@@ -203,8 +205,8 @@ class TestOnto(object):
     def test_onto_output_with_two(self):
         
         onto = flow.Onto(
-            tako.Nil_() >> tako.Emit(1),
-            tako.Nil_() >> tako.Emit(2)
+            tako.nil_ >> tako.Emit(1),
+            tako.nil_ >> tako.Emit(2)
         )
         assert onto(2) == (
             [2, 1, 2]
@@ -220,7 +222,7 @@ class TestUnder(object):
 
     def test_under_output_with_one(self):  
         under = flow.Under(
-            tako.Nil_() >> tako.Emit(1)
+            tako.nil_ >> tako.Emit(1)
         )
         assert under(2) == (
             [1, 2]
@@ -229,9 +231,98 @@ class TestUnder(object):
     def test_under_output_with_two(self):
         
         under = flow.Under(
-            tako.Nil_() >> tako.Emit(1),
-            tako.Nil_() >> tako.Emit(2)
+            tako.nil_ >> tako.Emit(1),
+            tako.nil_ >> tako.Emit(2)
         )
         assert under(2) == (
             [1, 2, 2]
+        )
+
+
+class TestStore(object):
+    
+    def test_store_init(self):
+        flow.Store(lambda x: x + 1)
+
+    def test_store_lambda_output(self):
+        lam = flow.Store(lambda x: x + 1)
+        lam(2)
+        assert lam.output == 3, (
+            'Should have stored the value 3 ' + 
+            'for the output'
+        )
+
+    def test_store_lambda_output_default(self):
+        lam = flow.Store(lambda x: x + 1, default=4)
+        assert lam.output == 4, (
+            'THe output should be the default output'
+        )
+
+    def test_store_lambda_output_reset(self):
+        lam = flow.Store(lambda x: x + 1, default=4)
+        lam(4)
+        lam.reset()
+        assert lam.output == 4, (
+            'THe output should be the default output'
+        )
+
+class TestBotInform(object):
+    
+    def test_botinform_init(self):
+        flow.BotInform(lambda x: x + 1, name='hi')
+
+    def test_store_lambda_output(self):
+        lam = flow.BotInform(lambda x: x + 1)
+        ware = bot.Warehouse()
+        lam(2, ware)
+        assert ware.probe(lam.key) == (3, True), (
+            'Warehouse have stored the value 3 ' + 
+            'for the output'
+        )
+
+    def test_store_lambda_no_use_neuron_key(self):
+        lam = flow.BotInform(lambda x: x + 1, name='XX', use_neuron_key=False)
+        ware = bot.Warehouse()
+        lam(2, ware)
+        
+        assert ware.probe(lam.key) == (3, True), (
+            'Warehouse have stored the value 3 ' + 
+            'for the output'
+        )
+
+
+class TestBotProbe(object):
+    
+    def test_botinform_init(self):
+        lam = flow.BotInform(lambda x: x + 1)
+        flow.BotProbe(lam, name='hi')
+
+    def test_probe_lambda_output(self):
+        lam = flow.BotInform(lambda x: x + 1)
+        probe = flow.BotProbe(lam)
+        ware = bot.Warehouse()
+        lam(2, ware)
+        assert probe(None, ware) == 3, (
+            'Warehouse have stored the value 3 ' + 
+            'for the output'
+        )
+
+    def test_probe_lambda_output_with_ref(self):
+        lam = flow.BotInform(lambda x: x + 1)
+        probe = flow.BotProbe(ref.ref(lam))
+        ware = bot.Warehouse()
+        lam(2, ware)
+        assert probe(None, ware) == 3, (
+            'Warehouse have stored the value 3 ' + 
+            'for the output'
+        )
+
+    def test_probe_lambda_output_with_name(self):
+        lam = flow.BotInform(lambda x: x + 1, name='T', use_neuron_key=False)
+        probe = flow.BotProbe(name='T')
+        ware = bot.Warehouse()
+        lam(2, ware)
+        assert probe(None, ware) == 3, (
+            'Warehouse have stored the value 3 ' + 
+            'for the output'
         )

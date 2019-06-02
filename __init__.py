@@ -286,6 +286,7 @@ class _Arg(object):
 arg = _Arg()
 
 # TODO: This is not right right now
+# TODO: This is not right right now
 class Declaration(Neuron):
     """
     
@@ -294,12 +295,15 @@ class Declaration(Neuron):
     
     """
     
-    def __init__(self, module_cls, args, kwargs, fix=False):
+    def __init__(self, module_cls, args=None, kwargs=None, dynamic=False):
         super().__init__()
+        args = args or []
+        kwargs = kwargs or {}
+        self.defined = None
         self.module_cls = module_cls
         self._args = args
         self._kwargs = kwargs
-        self._fix = fix
+        self._dynamic = dynamic
 
     def update_args(self, args, kwargs):
         self._kwargs = {k: update_arg(arg, *args, **kwargs) for k, arg in self._kwargs.items()}
@@ -311,8 +315,9 @@ class Declaration(Neuron):
         """
         # need to have code to define a module in
         # here
-        print('Args, ', self._args)
-        return to_neuron(self.module_cls(*self._args, **self._kwargs))
+        defined = to_neuron(self.module_cls(*self._args, **self._kwargs))
+        self.defined = defined
+        return defined
     
     def _replace(self, replace_with):
         if self.incoming:
@@ -325,15 +330,27 @@ class Declaration(Neuron):
         self.outgoing = None
 
     def __exec__(self, x):
-        neuron = self.define(x)
-        if not self._fix:
+        if not self._dynamic and not self.defined:
+            neuron = self.define(x)
             self._replace(neuron)
-            
+        elif not self._dynamic:
+            return self.defined(x)
+        else:
+            return self.define(x)(x)
+
         return neuron(x)
 
 
 def decl(cls, *args, **kwargs):
     return Declaration(cls, args, kwargs)
+
+
+@classmethod
+def _cls_decl(cls, *args, **kwargs):
+    return Declaration(cls, args, kwargs)
+
+Neuron.d = _cls_decl
+
 
 
 class Stem(object):
@@ -422,6 +439,9 @@ def to_neuron(x):
     
     # The default is to use an OpNeuron
     return OpNeuron(x)
+
+
+
 
 
 ######################################################

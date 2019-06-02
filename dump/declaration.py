@@ -48,6 +48,7 @@ class DeclarationStimulator(Stimulator):
         return self.op(x)
 """
 
+
 class Declaration(Neuron):
     """
     
@@ -80,7 +81,7 @@ class Declaration(Neuron):
         """
         # need to have code to define a module in
         # here
-        return tako.to_neuron(self.module_cls(*self._args, **self._kwargs))
+        return to_neuron(self.module_cls(*self._args, **self._kwargs))
     
     def _replace(self, replace_with):
         self.incoming.outgoing = replace_with
@@ -102,3 +103,4 @@ class Declaration(Neuron):
 @classmethod
 def decl(cls, *args, **kwargs):
     return Declaration(cls, *args, **kwargs)
+

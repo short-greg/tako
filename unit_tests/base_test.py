@@ -135,6 +135,32 @@ class TestDeclaration(object):
         )
         assert type(strand.lhs.outgoing) == tako.OpNeuron
 
+    def test_declaration_has_been_defined_with_kwargs(self):
+        def op(x):
+            return x + 1
+
+        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op=op)).encapsulate()
+        strand(1)
+        result = strand(1)
+
+        assert result == 2, (
+            'The value should become 2.'
+        )
+        assert type(strand.lhs.outgoing) == tako.OpNeuron
+
+    def test_declaration_with_dynamic(self):
+        def op(x):
+            return x + 1
+
+        strand = (tako.in_ >> tako.Declaration(tako.OpNeuron, [op], dynamic=True)).encapsulate()
+        strand(1)
+        result = strand(1)
+
+        assert result == 2, (
+            'The value should become 2.'
+        )
+        assert type(strand.lhs.outgoing) == tako.Declaration
+
 
 class TestStem(object):
     
@@ -186,7 +212,7 @@ class TestEmit(object):
             emit(1)
 
     def test_emit_with_strand(self):
-        strand = (tako.Nil_() >> tako.Emit(1)).encapsulate()
+        strand = (tako.nil_ >> tako.Emit(1)).encapsulate()
         assert strand() == 1, (
             'The output of the strand should be 1.'
         )

@@ -1,4 +1,5 @@
 from __init__ import Neuron, to_neuron, Strand, Arm
+import ref
 
 
 def to_strand(neuron):
@@ -489,37 +490,42 @@ class Under(_Merge):
 
 class BotInform(Neuron):
     def __init__(self, neuronable, name='', use_neuron_key=True, auto_reset=True):
-        self._base = neuronable
-        self._strand = to_neuron(neuronable).encapsulate()
+        self._base = to_neuron(neuronable)
+        self._strand = to_strand(self._base)
         self._auto_reset = auto_reset
         self._name = name
         self._use_neuron_key = use_neuron_key
 
     def __exec__(self, x):
-        return self._strand.forward(x)
+        return self._strand(x)
     
     @property
     def key(self):
         result = self._name
         if self._use_neuron_key is True:
-            return result + self._strand.key
+            return result + str(hash(self))
         return result
 
     def __call__(self, x, bot):
+        key = self.key
         if not self._auto_reset:
-            y, found = bot.probe(self.key)
+            y, found = bot.probe(key)
             if found:
                 return y
         y = super().__call__(x, bot)
-        bot.inform(self.key, y)
+        bot.inform(key, y)
         return y
 
 
 class BotProbe(Neuron):
-    def __init__(self, ref, name='', default=None, use_neuron_key=True):
-        self._ref = to_neuron(ref)
+    def __init__(self, my_ref=None, name='', default=None):
+        if my_ref is not None:
+            # if it's of ref type then use to_neuron otherwise
+            # do not
+            self._ref = to_neuron(my_ref)
+        else:
+            self._ref = None
         self._name = name
-        self._use_neuron_key = use_neuron_key
         self._default = default
 
     def __exec__(self, x):
@@ -529,21 +535,27 @@ class BotProbe(Neuron):
     @property
     def key(self):
         result = self._name
-        if self._use_neuron_key is True:
-            return result + self._ref.ref_key
+        
+        if self._ref is not None:
+            if isinstance(self._ref, ref.RefBase):
+                my_ref = self._ref(None)
+            else:
+                my_ref = self._ref
+            return result + str(my_ref.key)
         return result
 
     def __call__(self, x, bot):
         y, found = bot.probe(self.key)
-        if found:
-            return y
-        return super().__call__(x, bot)
+        return y
+        # if found:
+        #    return y
+        # return super().__call__(x, bot)
 
 
-class StoreOutput(Neuron):
-    def __init__(self, neuronable, default):
+class Store(Neuron):
+    def __init__(self, neuronable, default=None):
         neuron = to_neuron(neuronable)
-        self._strand = Strand(neuron).encapsulate()
+        self._strand = to_strand(neuron)
         self.output = None
         self._default = default
         self.reset()
@@ -552,6 +564,6 @@ class StoreOutput(Neuron):
         self.output = self._default
     
     def __exec__(self, x):
-        y = self._strand.forward(x)
+        y = self._strand(x)
         self.output = y
         return y

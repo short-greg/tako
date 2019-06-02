@@ -164,19 +164,3 @@ class TestCall(object):
         
         strand = tako.in_ >> r
         assert strand(J) == 'a_a'
-
-
-"""
-    def test_my_ref_execution_with_neuron(self):
-        def v():
-            return 2
-        
-        class T(object):
-            f = to_neuron(v)
-
-        r = to_neuron(ref.my.j)
-        r.set_owner(T)
-        
-        strand = tako.nil_ >> ref.r(ref.my.f)
-        assert strand() == 2
-    """
