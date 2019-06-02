@@ -56,7 +56,7 @@ class Neuron(object):
     
     # def probe(self, bot):
     #    raise NotImplementedError
-    
+    """ 
     def inform(self, x, bot=None):
         bot = bot or bot.Warehouse()
         bot.inform_input(self.key, x)
@@ -67,13 +67,10 @@ class Neuron(object):
             return bot.probe_output(self.key)
         
         return None, False
+    """
     
-    def __exec__(self, x):
+    def __call__(self, x, bot):
         raise NotImplementedError
-    
-    def __call__(self, x=None, bot=None):
-        print('Calling ', type(self))
-        return self.__exec__(x)
 
 
 class _In(Neuron):
@@ -103,7 +100,7 @@ class _In(Neuron):
     def __rshift__(self, other):
         return Strand([self, other])
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return x
 
 
@@ -130,7 +127,7 @@ class _Out(Neuron):
     def __rshift__(self, other):
         raise AttributeError('An "Out_" flow cannot output to another flow. ')
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return x
 
 
@@ -149,9 +146,11 @@ class _Nil(_In):
     def _connect_incoming(self, other):
         raise AttributeError('A "Nil" flow cannot have any incoming neurons')
     
+    """
     def inform(self, x=None, bot=None):
         assert x is None, 'Cannot inform nil Neuron'
         return super().inform(x, bot)
+    """
 
     def __getitem__(self, key):
         raise NotImplementedError
@@ -159,7 +158,7 @@ class _Nil(_In):
     def __rshift__(self, other):
         return Strand([self, other])
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         assert x is None, 'The input to a Nil flow must be None'
         return x
     
@@ -200,7 +199,7 @@ class Stimulator(object):
         self.x = None
         self.op = op
     
-    def __call__(self, x):
+    def __call__(self, x, bot=None):
         return self.op(x)
 
 
@@ -210,7 +209,7 @@ class Sub(Neuron):
         super().__init__()
         self.index = index
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return x[self.index]
     
     def spawn(self):
@@ -230,7 +229,7 @@ class OpNeuron(Neuron):
     def spawn(self):
         return OpNeuron(self._op, self._stimulator_cls)
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return self.stimulator(x)
 
 
@@ -241,7 +240,7 @@ class Noop(Neuron):
     def spawn(self):
         return Noop()
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return x
 
 # TODO: Refactor.. duplicating Stem
@@ -329,16 +328,15 @@ class Declaration(Neuron):
         self.incoming = None
         self.outgoing = None
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         if not self._dynamic and not self.defined:
             neuron = self.define(x)
             self._replace(neuron)
+            return neuron(x, bot)
         elif not self._dynamic:
-            return self.defined(x)
+            return self.defined(x, bot)
         else:
-            return self.define(x)(x)
-
-        return neuron(x)
+            return self.define(x)(x, bot)
 
 
 def decl(cls, *args, **kwargs):
@@ -357,7 +355,6 @@ class Stem(object):
     """
     
     """
-    
     def __init__(self, cls, *args, **kwargs):
         self._cls = cls
         self._args = args
@@ -385,9 +382,9 @@ class Emit(Neuron):
         self._to_emit = to_emit
         """
         if isinstance(to_emit, Ref):
-            self.__exec__ = self._evaluate_ref
+            self.__call__ = self._evaluate_ref
         else:
-            self.__exec__ = self._evaluate
+            self.__call__ = self._evaluate
         """
 
     def spawn(self):
@@ -410,7 +407,7 @@ class Emit(Neuron):
         return self._to_emit()
     """
 
-    def __exec__(self, x):
+    def __call__(self, x=None, bot=None):
         assert x is None, 'Emit Neurons must not take an input.'
         return self._to_emit
 
@@ -439,9 +436,6 @@ def to_neuron(x):
     
     # The default is to use an OpNeuron
     return OpNeuron(x)
-
-
-
 
 
 ######################################################
@@ -565,7 +559,7 @@ class Arm(Neuron):
     def bot_forward(self, bot):
         self.strand.bot_forward(bot)
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return self.strand(x)
 
     def spawn(self):

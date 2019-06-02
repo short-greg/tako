@@ -29,12 +29,8 @@ class Delay(Neuron):
     
     def reset(self):
         self.vals = [self.default] * self.count
-    
-    def __call__(self, x, bot=None):
-        # TODO: need to store delay here if necessary
-        return super().__call__(x, bot)
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         cur = self.vals.pop(0)
         self.vals.append(x)
         return cur
@@ -86,7 +82,7 @@ class Diverge(Neuron):
         for n in self._modules:
             n.bot_forward(bot)
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         """
         Right now x needs to be the same length as the number of modules
         
@@ -97,7 +93,7 @@ class Diverge(Neuron):
         result = []
         for i in range(self._n):
             result.append(
-                self._modules[i](x[i])
+                self._modules[i](x[i], bot)
             )
         return result
 
@@ -132,11 +128,11 @@ class Gate(Neuron):
         self._cond.bot_forward(bot)
         self._mod.bot_forward(bot)
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         passed = self._cond(x[0]) == self._pass_on
         
         if passed:
-            result = self._neuron(x[1])
+            result = self._neuron(x[1], bot)
         else:
             result = None
         
@@ -182,10 +178,10 @@ class Multi(Neuron):
         for n in self._modules:
             n.bot_forward(bot)
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         result = []
         for cur_mod in self._modules:
-            result.append(cur_mod(x))
+            result.append(cur_mod(x, bot))
         return result
 
 
@@ -217,12 +213,12 @@ class Repeat(Neuron):
         self._break_on = break_on
         self._output_all = output_all
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         all_results = []
         result = None
         
         while True:
-            cur_result = self._module(x)
+            cur_result = self._module(x, bot)
             if self._output_all:
                 all_results.append(result)
                 result = all_results
@@ -293,13 +289,13 @@ class Switch(Neuron):
         for n in self._modules:
             n.bot_forward(bot)
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         path = self._router(x[0])
         print(path)
         if 0 <= path <= len(self._modules):
-            return path, self._modules[path](x[1])
+            return path, self._modules[path](x[1], bot)
         elif self._default is not None:
-            return path, self._default(x[1])
+            return path, self._default(x[1], bot)
         else:
             return path, x[1]
 
@@ -342,15 +338,15 @@ class Cases(Neuron):
             n.bot_forward(bot)
         self._else.bot_forward(bot)
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         output_ = self.NO_OUTPUT
         for i, module in enumerate(self._modules):
-            output_ = module(x)
+            output_ = module(x, bot)
             if output_[0] == self._break_on:
                 return i, output_[1]
         
         if self._else is not None:
-            return 'Else', self._else(x)
+            return 'Else', self._else(x, bot)
         return self.NO_OUTPUT
 
 
@@ -387,18 +383,18 @@ class _Merge(Neuron):
 class Onto(_Merge):
     """
     """
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return [
-            x, *[strand() for strand in self._to_merge]
+            x, *[strand(None, bot) for strand in self._to_merge]
         ]
 
 
 class Under(_Merge):
     """
     """
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return [
-            *[strand() for strand in self._to_merge], x
+            *[strand(None, bot) for strand in self._to_merge], x
         ]
 
 
@@ -495,9 +491,6 @@ class BotInform(Neuron):
         self._auto_reset = auto_reset
         self._name = name
         self._use_neuron_key = use_neuron_key
-
-    def __exec__(self, x):
-        return self._strand(x)
     
     @property
     def key(self):
@@ -506,13 +499,13 @@ class BotInform(Neuron):
             return result + str(hash(self))
         return result
 
-    def __call__(self, x, bot):
+    def __call__(self, x, bot=None):
         key = self.key
         if not self._auto_reset:
             y, found = bot.probe(key)
             if found:
                 return y
-        y = super().__call__(x, bot)
+        y = self._strand(x, bot)
         bot.inform(key, y)
         return y
 
@@ -527,10 +520,6 @@ class BotProbe(Neuron):
             self._ref = None
         self._name = name
         self._default = default
-
-    def __exec__(self, x):
-        assert x is None, 'x should not be defined when executing bot probe'
-        return self._default
     
     @property
     def key(self):
@@ -544,8 +533,14 @@ class BotProbe(Neuron):
             return result + str(my_ref.key)
         return result
 
-    def __call__(self, x, bot):
+    def __call__(self, x, bot=None):
+        assert x is None, (
+            'x should not be defined when ' +
+            'executing bot probe'
+        )
         y, found = bot.probe(self.key)
+        if not found:
+            return self._default
         return y
         # if found:
         #    return y
@@ -563,7 +558,7 @@ class Store(Neuron):
     def reset(self):
         self.output = self._default
     
-    def __exec__(self, x):
-        y = self._strand(x)
+    def __call__(self, x, bot=None):
+        y = self._strand(x, bot)
         self.output = y
         return y

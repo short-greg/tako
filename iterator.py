@@ -49,7 +49,7 @@ class AccessorNeuron(tako.Neuron):
         self._accessor = accessor
         self._spawn_with_in = spawn_with_in
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         accessor = self._accessor.spawn()
         accessor.data = x
         return accessor
@@ -185,7 +185,7 @@ class ToIter(tako.Neuron):
     def __init__(self):
         super().__init__()
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         return Iter(x)
 
     def spawn(self):
@@ -196,7 +196,7 @@ class Iterate(tako.Neuron):
     
     AT_END = tuple()
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         if not x.at_end():
             result = x.get()
             x.adv()

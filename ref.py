@@ -74,7 +74,7 @@ class RefBase(tako.Neuron):
             prev_val = val
         return val
   
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         path = self._path
         
         if type(path) == str:
@@ -86,9 +86,9 @@ class RefBase(tako.Neuron):
 
 
 class EmissionRef(RefBase):
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         self._base_val = x
-        return super().__exec__(x)
+        return super().__call__(x, bot)
 
 
 class Child(object):
@@ -195,9 +195,9 @@ class NeuronRef(tako.Neuron, Owned, Child):
     def ref_key(self, x=None):
         return self._ref(x).key
     
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         neuron = self.get_ref(x)
-        return neuron(x)
+        return neuron(x, bot)
     
     def get_ref(self, x=None):
         return self._ref(x)
@@ -268,7 +268,7 @@ class InCall(tako.Neuron, Owned, Child):
         else:
             return arg
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         """
         @param input[0] - function to call
         @param input[1] - input
@@ -314,12 +314,12 @@ class Call(InCall):
         super().__init__(*args, **kwargs)
         self._f = f
 
-    def __exec__(self, x):
+    def __call__(self, x, bot=None):
         """
         @param input[0] - function to call
         @param input[1] - input
         """
-        return super().__exec__((self._f, x))
+        return super().__call__((self._f, x), bot)
 
 
 """
@@ -527,7 +527,7 @@ class _Refmeta(object):
         self._refmeta_type = refmeta_type
         self._args = args or []
     
-    def __exec__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         return self._refmeta_type(*self._args)(*args, **kwargs)
     
     def __getattr__(self, key):
