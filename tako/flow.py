@@ -1,4 +1,4 @@
-from __init__ import Neuron, to_neuron, Strand, Arm
+from tako import Neuron, to_neuron, Strand, Arm
 from tako import ref
 
 

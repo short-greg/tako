@@ -1,5 +1,5 @@
 import pytest
-from tako import __init__ as tako
+import tako
 
 
 # @pytest.mark.incremental

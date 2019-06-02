@@ -1,7 +1,6 @@
 import numpy as np
 import math
-from tako import __init__ as tako
-
+import tako
 
 
 class Accessor(object):

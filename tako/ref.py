@@ -1,6 +1,5 @@
-from tako import __init__ as tako
-from __init__ import to_neuron
-
+import tako
+from tako import to_neuron
 
 
 """

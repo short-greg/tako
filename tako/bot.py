@@ -1,6 +1,3 @@
-
-
-
 class Bot(object):
     """
     Bots are used in order to traverse the information network and perform
