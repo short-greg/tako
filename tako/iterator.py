@@ -1,6 +1,6 @@
 import numpy as np
 import math
-import __init__ as tako
+from tako import __init__ as tako
 
 
 

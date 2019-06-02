@@ -1,6 +1,6 @@
-import ref
+from tako import ref
 from __init__ import to_neuron
-import __init__ as tako
+from tako import __init__ as tako
 
 
 class TestEmissionRef(object):

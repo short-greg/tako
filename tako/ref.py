@@ -1,4 +1,4 @@
-import __init__ as tako
+from tako import __init__ as tako
 from __init__ import to_neuron
 
 
@@ -552,7 +552,6 @@ super_ = _Refmeta(SuperPlaceholder)
 
 def ref(val):
     return _Valrefmeta(val)
-
 
 
 def is_refmeta(val):

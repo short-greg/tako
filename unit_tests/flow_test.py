@@ -1,8 +1,8 @@
-import __init__ as tako
-import flow
+from tako import __init__ as tako
+from tako import flow
 import pytest
-import bot
-import ref
+from tako import bot
+from tako import ref
 
 
 class TestDelay(object):

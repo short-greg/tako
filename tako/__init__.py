@@ -1,4 +1,4 @@
-import bot
+from tako import bot
 
 ######################################################
 # Core Neuron Modules
@@ -53,22 +53,7 @@ class Neuron(object):
     # use hash(self) <- get the hash for the flow and 
     # pass it to the bot.. 
     # or just send the bot self... not sure which to do yet
-    
-    # def probe(self, bot):
-    #    raise NotImplementedError
-    """ 
-    def inform(self, x, bot=None):
-        bot = bot or bot.Warehouse()
-        bot.inform_input(self.key, x)
-        return bot
-    
-    def probe(self, bot=None):
-        if bot is not None and bot.output_informed(self.key):
-            return bot.probe_output(self.key)
-        
-        return None, False
-    """
-    
+
     def __call__(self, x, bot):
         raise NotImplementedError
 
@@ -203,6 +188,17 @@ class Stimulator(object):
         return self.op(x)
 
 
+class UnpackStimulator(Stimulator):
+    """
+    Stimulator is used to stimulate a particular operation
+    in the op nerve
+    TODO: "I am not sure if it is still needed"
+    
+    """
+    def __call__(self, x, bot=None):
+        return self.op(*x)
+
+
 class Sub(Neuron):
     
     def __init__(self, index):
@@ -253,9 +249,10 @@ def update_arg(arg, *args, **kwargs):
 
 class Arg(object):
     """
-    
+    Args are used in stems to provide variable
+    rather than constant arguments to the
+    neurons created by the stem
     """
-
     def __init__(self, key):
         self._key = key
 
@@ -287,13 +284,10 @@ arg = _Arg()
 # TODO: This is not right right now
 # TODO: This is not right right now
 class Declaration(Neuron):
-    """
-    
-    
+    """    
     Declaration will define a neural network
     
     """
-    
     def __init__(self, module_cls, args=None, kwargs=None, dynamic=False):
         super().__init__()
         args = args or []
@@ -350,10 +344,9 @@ def _cls_decl(cls, *args, **kwargs):
 Neuron.d = _cls_decl
 
 
-
 class Stem(object):
     """
-    
+    Stems provide templates for creating arms
     """
     def __init__(self, cls, *args, **kwargs):
         self._cls = cls
@@ -548,10 +541,9 @@ Neuron.__rshift__ = neuron_rshift
 
 class Arm(Neuron):
     """
-    Arms are the basic Neuron encapsulator
-    The purpose is so that they can
+    Arms wrap strands so that they can be
+    like neurons
     """
-    
     def __init__(self, strand):
         super().__init__()
         self.strand = strand.encapsulate()
@@ -572,7 +564,7 @@ class Arm(Neuron):
 
 
 ######################################################
-#
+# 
 # 
 #
 ######################################################
@@ -623,7 +615,10 @@ class Tako(object, metaclass=_TakoType):
         owner and parent should be contained in the flow not the op
         
         """
-        def __init__(self, arms, cls=None, owner=None, parent=None):
+        def __init__(
+            self, arms, cls=None, owner=None, 
+            parent=None
+        ):
             """
             Need to replicate the neurons
             """
@@ -705,7 +700,9 @@ class Tako(object, metaclass=_TakoType):
         if hasattr(cls, k):
             v = getattr(cls, k)
             if is_arm(v):
-                return object.__getattribute__(self, '__armc__').getarm(k)
+                return object.__getattribute__(
+                    self, '__armc__'
+                ).getarm(k)
             return v
         raise AttributeError('Attribute {} not defined for Tako {}'.format(k, self))
 
@@ -740,7 +737,9 @@ if __name__ == '__main__':
     class YType(type):
         
         def __new__(cls, name, bases, attr):
-            return super().__new__(cls, name, bases, attr)
+            return super().__new__(
+                cls, name, bases, attr
+            )
 
     print(X().strand(1))
     

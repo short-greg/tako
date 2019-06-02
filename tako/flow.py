@@ -1,5 +1,5 @@
 from __init__ import Neuron, to_neuron, Strand, Arm
-import ref
+from tako import ref
 
 
 def to_strand(neuron):
@@ -544,7 +544,7 @@ class BotProbe(Neuron):
         return y
         # if found:
         #    return y
-        # return super().__call__(x, bot)
+        # return __init__().__call__(x, bot)
 
 
 class Store(Neuron):

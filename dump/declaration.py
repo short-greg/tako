@@ -1,5 +1,5 @@
 from flow import Stimulator, Neuron
-import __init__ as tako
+from tako import __init__ as tako
 
 """
 import copy

@@ -1,5 +1,5 @@
-import iterator
-import __init__ as tako
+from tako import iterator
+from tako import __init__ as tako
 
 
 
