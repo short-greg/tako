@@ -439,12 +439,6 @@ class Placeholder(object):
     def __neuron__(self):
         raise NotImplementedError 
 
-    """
-        if not oc.isInstance(self) then
-          rawset(self, index, val)
-        end
-      end
-    """
 
 Placeholder.__rshift__ = tako.Neuron.__rshift__
 

@@ -8,8 +8,30 @@ def to_strand(neuron):
 
 class Delay(Neuron):
     
+    """Delays the input to be output at a later timestep
+    
+    Parameters
+    ----------
+    x : (some sort of input)
+    
+    Returns
+    ----------
+    x
+    
+    :example 
+    
+    """
+    
     def __init__(self, count=1, default=None):
-        assert count >= 1, 'The delay must be set to be greater than or equal to 1'
+        '''
+        :param int count: The amount to delay by
+        :param default: The default value to output when there is
+        no input to output yet
+        '''
+        assert count >= 1, (
+            'The delay must be set to be ' +
+            'greater than or equal to 1'
+        )
         self.default = default
         self.count = count
         self.vals = None
@@ -21,6 +43,11 @@ class Delay(Neuron):
     
     @count.setter
     def count(self, v):
+        '''
+        Specify the delay count
+        Must be creater than 0
+        :param int v: The amount of delay
+        '''
         assert v > 0, (
             'The amount of delay must be ' +
             'greater than 0.'
@@ -28,6 +55,10 @@ class Delay(Neuron):
         self._count = v
     
     def reset(self):
+        '''
+        :post: The values used for delay are reset
+        to the default values
+        '''
         self.vals = [self.default] * self.count
 
     def __call__(self, x, bot=None):
@@ -35,28 +66,27 @@ class Delay(Neuron):
         self.vals.append(x)
         return cur
 
+    def spawn(self):
+        return Delay(
+            self.count, self.default
+        )
+
+
 class Diverge(Neuron):
-    """
-    --- A flow structure that sends each 
-    -- emission through a different
-    -- processing stream.  
-    -- The number of emissions must equal that
-    -- of the number of processing streams.
-    -- @input   [values] (whatever the process 
-    --          associated with the value at 
-    --          index i takes
-    -- @output  [values]
-    -- @usage oc.Const({1, 2, 3}) .. oc.Diverge{
-    --            p1, p2, p3
-    --          }
-    --          This will send 1, 2, and 3 through
-    --          p1, p2, p3 respectively.
-    """
+    '''
+    A flow structure that sends each emission
+    through a different processing strand
+    The number of emissions must be equal
+    to the number of strands
     
-    """
-    --- private method to determine how many 
-    -- times to loop
-    """
+    
+    :@example:
+      strand = nil_ >> Emit([1, 2, 3]) >> oc.Diverge{
+        p1, p2, p3
+      }
+    This will send 1, 2, and 3 through 
+    p1, p2, p3 respectively.
+    '''
     def __init__(self, n=None, *args):
         """
         --- @constructor
@@ -66,59 +96,66 @@ class Diverge(Neuron):
         -- @param streams.n - number of modules 
         -- (if not defined will be table.maxn of streams)
         """
-        print(args, n)
         super().__init__()
         streams = args
-        self._modules = []
+        self._strands = []
         num_streams = len(streams)
         self._n = n or num_streams
         for i in range(self._n):
             if i < num_streams:
-                self._modules.append(to_neuron(streams[i]))
+                self._strands.append(to_neuron(streams[i]))
             else:
-                self._modules.append(to_neuron(None))
+                self._strands.append(to_neuron(None))
 
     def bot_forward(self, bot):
-        for n in self._modules:
-            n.bot_forward(bot)
+        for strand in self._strands:
+            strand.bot_forward(bot)
     
     def __call__(self, x, bot=None):
-        """
-        Right now x needs to be the same length as the number of modules
-        
-        --- Send each index of the input through the
-        -- corresponding strand index.
-        -- @param input - {}
-        """
+        '''
+        :param x: must be a sequence with the same length
+        as the number of strands
+        '''
         result = []
         for i in range(self._n):
             result.append(
-                self._modules[i](x[i], bot)
+                self._strands[i](x[i], bot)
             )
         return result
 
+    def spawn(self):
+        return Diverge(
+            self._n, 
+            *[strand.spawn() for strand in self._strands]
+        )
+
 
 class Gate(Neuron):
-    """
-    --- Control structure that passes the outputs based on
-    -- whether a condition is passed 
-    -- (similar to an if-statement)
-    --
-    -- Nerve: Can be set to probe or stimulate with the input
-    -- Function: Can be set to send the input through 
-    --            the function
-    -- format: function (self, input) ... end
-    --
-    -- @input - The value that gets passed in
-    -- @output - {passed?, <stream output>} - 
-    --            {boolean, <stream output>} - 
-    -- 
-    -- @usage  oc.Gate(
-    --   function (self, input) return input ~= nil end,
-    --   nn.Linear(2, 2)
-    -- )
-    """
+    '''
+    Control structure that passes the output
+    through a strand if it passes the condition
+    Control structure that passes the outputs based on
+    whether a condition is passed 
+    (similar to an if-statement)
+
+    @input - (val to pass to condition, val to pass to neuron)
+    @output - {passed?, <stream output>} - 
+              {boolean, <stream output>} - 
+    @example  in_ >> Gate(
+        cond=lambda x: x == 2,
+        neuron=lambda x: x + 1
+    )
+    '''
     def __init__(self, cond=None, neuron=None, pass_on=True):
+        '''
+        :param cond: Condition required to pass for the input
+        to go through the strand
+        :param neuron: the operation to perform on inputs
+        that pass
+        :param pass_on: The value the output of cond
+        should equal in order for the condition to pass
+        '''
+        
         super().__init__()
         self._cond = to_strand(cond)
         self._neuron = to_strand(neuron)
@@ -129,6 +166,12 @@ class Gate(Neuron):
         self._mod.bot_forward(bot)
 
     def __call__(self, x, bot=None):
+        '''
+        :param x: sequence with two items
+        :param bot:
+        :return passed, result: Whether the condition passed 
+        and what the result is
+        '''
         passed = self._cond(x[0]) == self._pass_on
         
         if passed:
@@ -136,29 +179,30 @@ class Gate(Neuron):
         else:
             result = None
         
-        return [passed, result]
+        return passed, result
+    
+    def spawn(self):
+        return Gate(
+            cond=self._cond.spawn(), 
+            neuron=self._neuron.spawn(),
+            pass_on=self._pass_on
+        )
 
 
 class Multi(Neuron):
-    """
-    --- Multi sends an input through several 
-    -- processing
-    -- 
-    -- @input - value (will be sent through each stream)
-    -- @output - []
-    -- 
-    -- @example oc.Var(1) .. oc.Multi{n=3}
-    -- Probing will result in the output {1, 1, 1}
-    -- The number of processes is specified to be
-    -- 3 but they are all Noops
-    --
-    -- @example oc.Var(1) .. oc.Multi{p1, p2, p3}
-    -- Here the output will be {
-    --   p1:stimulate(1),
-    --   p2:stimulate(1),
-    --   p3:stimulate(1)
-    -- }
-    """
+    '''
+    Multi sends an input through several processing
+    @input - value (will be sent through each stream)
+    @output - []
+
+    @example strand = in_ >> Emit(1) >> Multi(n=3)
+    
+    strand() -> [1, 1, 1]
+    
+    @example strand = in_ >> Emit(1) >> Multi(p1, p2, p3)
+    Here the output will be [p1(1), p2(1), p3(1)]
+    '''
+
     def __init__(self, n=None, *args):
         super().__init__()
         streams = args
@@ -167,12 +211,12 @@ class Multi(Neuron):
         assert num_streams <= self._n, (
             'Cannot '
         )
-        self._modules = []
+        self._strands = []
         for i in range(self._n):
             if i < num_streams:
-                self._modules.append(to_neuron(args[i]))
+                self._strands.append(to_strand(args[i]))
             else:
-                self._modules.append(to_neuron(None))
+                self._strands.append(to_strand(None))
 
     def bot_forward(self, bot):
         for n in self._modules:
@@ -184,24 +228,25 @@ class Multi(Neuron):
             result.append(cur_mod(x, bot))
         return result
 
+    def spawn(self):
+        return Multi(
+            self._n, 
+            *[strand.spawn() for strand in self._strands]
+        )
+
 
 class Repeat(Neuron):
-    """
-    --- Repeat a process until the process outputs false
-    -- It is possible to update the gradient of
-    -- the process through updateOutput if 
-    -- gradOn is set to true.  The stream will 
-    -- repeatedly be informed by the input that 
-    -- is passed in.  Repeat executes
-    -- backpropagation and accumulation as 
-    -- well if they are turned on.
-    -- @input Whatever the inner process takes
-    -- @output nil
-    -- @usage oc.Repeat(
-    --             oc.ref.getResponse():eq('Finished')
-    --        )
-    """
+    '''
+    Repeat a process until the process outputs
+    false.
     
+    @example strand = in_ >> Repeat(
+        Gate(cond=lambda x: x == 3, neuron=lambda x: x + 1)
+    )
+    
+    strand(0) -> 3
+    '''
+
     # TODO: How to send the bot forward through the network???
     # Is this straightforward? Do I need to store the output
     # at each time step? <- I think I don't...
@@ -210,6 +255,7 @@ class Repeat(Neuron):
     def __init__(self, mod, break_on=False, output_all=False):
         super().__init__()
         self._module = mod
+        self._strand = to_strand(mod)
         self._break_on = break_on
         self._output_all = output_all
     
@@ -233,101 +279,71 @@ class Repeat(Neuron):
     def bot_forward(self, bot):
         self._module.bot_forward(bot)
 
+    def spawn(self):
+        return Repeat(self._strand.spawn(), self._break_on, self._output_all)
+
 
 class Switch(Neuron):
-    """
-    --- @abstract
-    --
-    -- Control module that sends data
-    -- through a single process amongst several 
-    -- processes.  There are two types of routers: 
-    -- Switch and Case.  
-    -- 
-    -- Case works like an IfElse block and
-    -- where the first Case to succeed gets output
-    -- Switch has a nerve which outputs the 
-    -- path to be taken.
-    -- TODO: Some unit tests are broken.. 
-    -- Need to look into this problem 
+    '''    
+    Send the input[0] through a routing neuron
+    which decides the neuron to send input[1]
+    through
 
-    --
-    
-    --- Control module that sends data
-    -- through a function which routes the input
-    -- to one of n nerves where n is the number
-    -- of processes.
-    --
-    -- @usage oc.Switch(
-    --   router,
-    --   {p1, p2, p3}
-    -- )
-    -- This Switch will send the input through
-    -- router which outputs a number representing
-    -- the path to take.  If p2 is chosen the output
-    --　will be {path, p2.output}
-    --
-    -- @input depends on the nerves
-    -- @output {path, nerve[path].output[2]}
-    --
-    
-    -- TODO: the switch backpropagation is
-    -- not correct right now.  If the default value
-    -- is output... it should still output the
-    -- actual value that is output and not 'defualt'
-    -- i think
-    
-    """
+    @example in_ >> Switch(
+      router,
+      {p1, p2, p3}
+    )
+ 
+    '''
     def __init__(self, router, *args, **kwargs):
         super().__init__()
         self._router = to_strand(router)
-        self._modules = [to_strand(module) for module in args]
+        self._strands = [to_strand(module) for module in args]
         default = kwargs.get('default')
         self._default = to_strand(default) if default is not None else None
 
     def bot_forward(self, bot):
         self._router.bot_forward(bot)
-        for n in self._modules:
+        for n in self._strands:
             n.bot_forward(bot)
 
     def __call__(self, x, bot=None):
         path = self._router(x[0])
-        print(path)
-        if 0 <= path <= len(self._modules):
-            return path, self._modules[path](x[1], bot)
+        if 0 <= path <= len(self._strands):
+            return path, self._strands[path](x[1], bot)
         elif self._default is not None:
             return path, self._default(x[1], bot)
         else:
             return path, x[1]
 
+    def spawn(self):
+        return Switch(
+            self._router.spawn(),
+            *[strand.spawn() for strand in self._strands],
+            default=self._default.spawn()
+        )
 
 class Cases(Neuron):
-    """
-    --- Control module that sends the input
-    -- through processes one by one 
-    -- if the process outputs success then
-    -- that output will become the output of
-    -- the Case
-    --
-    -- @usage oc.Cases(
-    --   oc.Gate{p1, p2},
-    --   oc.Gate{p3, p4},
-    --   default=p5
-    -- )
-    -- This Case will send through Gate1 and
-    -- if its first output is true then it will 
-    -- the {path, p2.output}
-    --
-    -- @input depends on the nerves
-    -- @output {path, nerve[path].output[2]}
-    --     
-    -- TODO: Some unit tests are broken.. 
-    -- Need to look into this problem
-    """
+    '''
+    Case works like an IfElse block and
+    where the first Case to succeed gets output
+    Control module that sends the input
+    through processes one by one 
+    if the process outputs success then
+    that output will become the output of
+    the Case
+
+    @usage oc.Cases(
+        Gate(cond1, proc1),
+        Gate{cond2, proc2),
+        else_=proc3
+    )
+    '''
     NO_OUTPUT = None, None
     
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self._modules = [to_strand(module) for module in args]
+        self._strands = [to_strand(module) for module in args]
         self._else = kwargs.get('else_')
         if self._else is not None:
             self._else = to_neuron(self._else)
@@ -340,63 +356,69 @@ class Cases(Neuron):
     
     def __call__(self, x, bot=None):
         output_ = self.NO_OUTPUT
-        for i, module in enumerate(self._modules):
-            output_ = module(x, bot)
+        for i, strand in enumerate(self._strands):
+            output_ = strand(x, bot)
             if output_[0] == self._break_on:
                 return i, output_[1]
         
         if self._else is not None:
             return 'Else', self._else(x, bot)
-        return self.NO_OUTPUT
+        return output_
+    
+    def spawn(self):
+        return Cases(
+            *[strand.spawn() for strand in self._strands], 
+            else_=self._else.spawn() if self._else is not None else None
+        )
 
-
-"""
-How to handle merge
-1) I don't think I really need merge in anymore
-2) Need to check if there is an output for the merge in the bot prior to executing
-what if it's a reference?? <- This is a little more complcated
-3) 
-4) 
-5) Call(my.x, args)
-
-"""
 
 class _Merge(Neuron):
-    """
+    '''
+    Merge in the output from another neuron
+    The neuron must not need an input
     
+    @example 
+    strand1 = in_ >> BotInform(lambda x: x - 1, name='bot')
+    strand2 = in_ >> lambda x: x + 1 >> Onto(BotProbe(name='bot', use_neuron_key=False))
     
-    """
+    strand1(1, warehouse)
+    strand2(1, warehouse) -> [2, 0]
+    
+    Merge can also be used with Emit
+    strand = in_ >> lambda x: x + 1 >> Onto(Emit('bot'))
+    
+    strand(1) -> [2, 'bot']
+    '''
     def __init__(self, *args):
-        # NEED to think about this more
         self._to_merge = [to_strand(arg) for arg in args]
-    
-    """
-    def _get_output(self, neuron, bot):
-        y, exists = neuron.probe_output(bot)
-        
-        if not exists:
-            return neuron()
-        return y
-    """
 
 
 class Onto(_Merge):
     """
+    A merge which prepends the input in front of the merged
+    items
     """
     def __call__(self, x, bot=None):
         return [
             x, *[strand(None, bot) for strand in self._to_merge]
         ]
 
+    def spawn(self):
+        return Onto([strand.spawn() for strand in self._to_merge])
+    
 
 class Under(_Merge):
     """
+    A merge which appends the input to the back of the merged
+    items
     """
     def __call__(self, x, bot=None):
         return [
             *[strand(None, bot) for strand in self._to_merge], x
         ]
 
+    def spawn(self):
+        return Under([strand.spawn() for strand in self._to_merge])
 
 # class Adapter(Neuron):
     """
@@ -485,8 +507,21 @@ class Under(_Merge):
     """
 
 class BotInform(Neuron):
+    '''
+    Neuron that informs the bot that has been 
+    passed through with the output of the neuron 
+    (It has to be a warehouse)
+    
+    '''
+
     def __init__(self, neuronable, name='', use_neuron_key=True, auto_reset=True):
-        self._base = to_neuron(neuronable)
+        '''
+        :param neuronable: item to convert ot a neuron
+        :param name: The name to use when informing (to attach to the key) - string
+        :param use_neuron_key: Whether to use the neuron hash key when informing - boolean
+        :param auto_reset: whether to update the output automatically when a new input is passed in -
+        '''
+        self._base = neuronable
         self._strand = to_strand(self._base)
         self._auto_reset = auto_reset
         self._name = name
@@ -499,6 +534,9 @@ class BotInform(Neuron):
             return result + str(hash(self))
         return result
 
+    def bot_forward(self, bot):
+        self._strand.bot_forward(bot)
+
     def __call__(self, x, bot=None):
         key = self.key
         if not self._auto_reset:
@@ -508,23 +546,37 @@ class BotInform(Neuron):
         y = self._strand(x, bot)
         bot.inform(key, y)
         return y
-
+    
+    def spawn(self):
+        return BotInform(
+            self._strand.spawn(), self._name, 
+            self._use_neuron_key, self._auto_reset
+        )
 
 class BotProbe(Neuron):
     def __init__(self, my_ref=None, name='', default=None):
+        '''
+        Neuron that informs the bot that has been 
+        passed through with the output of the neuron 
+        (It has to be a warehouse)
+    
+        :param (None or Neuron) my_ref: The neuron to refer to - if not specified will only use name
+        :param string name: The name of the neuron to refer to 
+        :param default: The default value to output (if the probe fails)
+        '''
+        self._ref_base = my_ref
+        
         if my_ref is not None:
-            # if it's of ref type then use to_neuron otherwise
-            # do not
             self._ref = to_neuron(my_ref)
         else:
             self._ref = None
+
         self._name = name
         self._default = default
     
     @property
     def key(self):
         result = self._name
-        
         if self._ref is not None:
             if isinstance(self._ref, ref.RefBase):
                 my_ref = self._ref(None)
@@ -542,12 +594,18 @@ class BotProbe(Neuron):
         if not found:
             return self._default
         return y
-        # if found:
-        #    return y
-        # return __init__().__call__(x, bot)
+    
+    def spawn(self):
+        return BotProbe(
+            self._ref_base, self._name, self._default
+        )
 
 
 class Store(Neuron):
+    '''
+    Stores the output of a neuron
+    
+    '''
     def __init__(self, neuronable, default=None):
         neuron = to_neuron(neuronable)
         self._strand = to_strand(neuron)
@@ -558,7 +616,15 @@ class Store(Neuron):
     def reset(self):
         self.output = self._default
     
+    def bot_forward(self, bot):
+        self._strand.bot_forward(bot)
+    
     def __call__(self, x, bot=None):
         y = self._strand(x, bot)
         self.output = y
         return y
+
+    def spawn(self):
+        return Store(
+            self._strand.spawn(), self._name, self._default
+        )

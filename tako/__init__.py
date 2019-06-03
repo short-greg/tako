@@ -22,30 +22,62 @@ class Neuron(object):
         return hash(self)
     
     def visit(self, bot):
+        ''' 
+        Visit this neuron with a bot
+        :param Bot bot: The bot to visit the neuron with
+        '''
         return bot(self)
     
     def spawn(self):
+        '''
+        Spawn a new neuron of this type with the same member variables
+        '''
+        
         return Neuron()
     
     def bot_forward(self, bot):
+        '''
+        Pass a bot forward through the network
+        :param Bot bot: The bot to pass forward
+        '''
+        
         if self.visit(bot) and self.outgoing is not None:
             self.outgoing.bot_forward(bot)
     
     def forward(self, x, bot=None):
+        '''
+        Send an input forward through the network
+        :param x: The input into the neuron
+        :param Bot bot: The bot to send through the netwrok
+        '''
+        
         x = self(x, bot)
         if self.outgoing is not None:
             return self.outgoing.forward(x, bot)
         return x
 
     def connect(self, other):
+        '''
+        Connect this neuron (as the left hand side) to another neuron
+        :param Neuron(able) other: The item to connect this neuron to
+        '''
         other._connect_incoming(self)
         self._connect_outgoing(other)
     
     def _connect_incoming(self, other):
+        '''
+        Set the incoming of this neuron to be another neuron (a helper method for connect)
+        :param Neuron(able) other: The item to connect this neuron to
+        '''
+        
         assert self.incoming is None, 'There can only be one incoming flow for a flow'
         self.incoming = other
         
     def _connect_outgoing(self, other):
+        '''
+        Set the outgoing of this neuron to be another neuron (a helper method for connect)
+        :param other: The neuron tihs neuron feeds into
+        '''
         assert self.outgoing is None, 'There can only be one incoming flow for a flow'
         self.outgoing = other
     
@@ -55,17 +87,34 @@ class Neuron(object):
     # or just send the bot self... not sure which to do yet
 
     def __call__(self, x, bot):
+        """
+        Execute the operation specified by the neuron (In the base neuron there is no
+        operation).
+        :param x: The input into the neuron (can be anything)
+        :param Bot bot: a bot to pass through the network (can be used by
+        neurons that store info or probe the bot for info)
+        """
         raise NotImplementedError
 
 
 class _In(Neuron):
     """
-    Used for convenience to create a strand where the following objects are
-    'ops' so that those ops will properly be converted to neurons
+    A starting neuron for a Strand. _In indicates that there will be an input
+    into the strand.
     
-    It should come at the start of a strand (especially those strands used
-    within neurons that control flow.) The reason for this is because of the
-    "declaration" objects used to declare a new class
+    _In is partly used for convenience so that operations which are not neurons
+    will be converted to neurons
+    
+    It is also used along with _Out in order to have a start and end to the strand
+    This is important for 'declarations' because the declarations will get
+    replaced with other neurons and it is necessary to maintain the pointer to them.
+    
+    In practice
+    
+    in_ should be used which will create an _In neuron when doing rshift
+    
+    strand = in_ >> op1 >> op2 >> out_
+    
     """
     def __init__(self):
         super().__init__()
@@ -75,9 +124,6 @@ class _In(Neuron):
     
     def _connect_incoming(self, other):
         raise AttributeError('An In flow cannot have any incoming neurons')
-    
-    # def probe(self, bot):
-    #    return self.x
     
     def __getitem__(self, key):
         return to_neuron(Sub(key))
@@ -91,8 +137,10 @@ class _In(Neuron):
 
 class _Out(Neuron):
     """
-    Used for convenience to create a strand where the following objects are
-    'ops' so that those ops will properly be converted to neurons
+    An ending neuron for a Strand.
+    
+    Used for convenience to create a strand which has declaration neurons
+    
     """
     def __init__(self):
         super().__init__()
@@ -118,6 +166,9 @@ class _Out(Neuron):
 
 class _Nil(_In):
     """
+    A starting neuron for a Strand. _Nil indicates that there will be no
+    input into the strand
+    
     Primarily a convenience for creating 'strands' with Emit Neurons
     This is used as the starting flow for the case where there
     is no input into the network
@@ -130,12 +181,6 @@ class _Nil(_In):
     
     def _connect_incoming(self, other):
         raise AttributeError('A "Nil" flow cannot have any incoming neurons')
-    
-    """
-    def inform(self, x=None, bot=None):
-        assert x is None, 'Cannot inform nil Neuron'
-        return super().inform(x, bot)
-    """
 
     def __getitem__(self, key):
         raise NotImplementedError
@@ -148,38 +193,45 @@ class _Nil(_In):
         return x
     
 class _InCreator(object):
-    
+    '''
+    Convenience class to create an _In neuron using in_
+    '''
     def __rshift__(self, other):
         return _In() >> other
 
 
+# used for starting a strand
 in_ = _InCreator()
 
 
 class _OutCreator(object):
-    
+    '''
+    Convenience class to create an _Out neuron using out_
+    '''
     def __rshift__(self, other):
         return _Out() >> other
 
+# used for ending a strand
 out_ = _OutCreator()
 
 
 class _NilCreator(object):
-    
+    '''
+    Convenience class to create an _Nil neuron using nil_
+    '''
     def __rshift__(self, other):
         return _Nil() >> other
 
 
+# object used to create _Nil neurons
 nil_ = _NilCreator()
 
 
 class Stimulator(object):
-    """
+    '''
     Stimulator is used to stimulate a particular operation
     in the op nerve
-    TODO: "I am not sure if it is still needed"
-    
-    """
+    '''
     def __init__(self, op):
         self.x = None
         self.op = op
@@ -189,19 +241,20 @@ class Stimulator(object):
 
 
 class UnpackStimulator(Stimulator):
-    """
-    Stimulator is used to stimulate a particular operation
-    in the op nerve
-    TODO: "I am not sure if it is still needed"
-    
-    """
+    '''
+    Stimulator used for operations for which the input 
+    should be unpacked
+    '''
     def __call__(self, x, bot=None):
         return self.op(*x)
 
 
 class Sub(Neuron):
     
-    def __init__(self, index):
+    def __init__(self, index): 
+        '''
+        Neuron to call __getitem__ on the input that is passed in
+        '''
         super().__init__()
         self.index = index
     
