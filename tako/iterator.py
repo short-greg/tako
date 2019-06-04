@@ -77,7 +77,7 @@ class MetaAccessor(object):
     
     def __setitem__(self, idx, val):
         raise NotImplementedError
-        
+
 
 class Shuffle(MetaAccessor):
     

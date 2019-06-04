@@ -209,7 +209,7 @@ class Multi(Neuron):
         num_streams = len(streams) if args is not None else 0
         self._n = n or num_streams
         assert num_streams <= self._n, (
-            'Cannot '
+            'The number of streams must match or be less than "n".'
         )
         self._strands = []
         for i in range(self._n):

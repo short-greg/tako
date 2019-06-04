@@ -84,34 +84,27 @@ class RefBase(tako.Neuron):
         return val
 
 
-class EmissionRef(RefBase):
-    def __call__(self, x, bot=None):
-        self._base_val = x
-        return super().__call__(x, bot)
-
-
 class Child(object):
-    def __init__(self):
-        self._super = None
+    def __init__(self, child_of=None):
+        self.set_super(child_of)
     
     def set_super(self, super_):
         if self._super is None:
             self._super = super_
             return True
-        else:
-            return False
+        return False
 
 
 class Owned(object):
-    def __init__(self):
-        self._owner = None
+    def __init__(self, owner=None):
+        self.set_owner(owner)
     
     def set_owner(self, owner):
         if self._owner is None:
             self._owner = owner
             return True
-        else:
-            return False
+        return False
+    
 
 """
 y >> x >> Onto(my.z)
@@ -129,6 +122,25 @@ Diverge(
 """
 
 
+
+class EmissionRef(RefBase):
+    '''
+    Emission Ref allows one to access members of the emission that was passed in and
+    perform operations such as indexing
+    
+    
+    '''
+    
+    
+    
+    def __call__(self, x, bot=None):
+        self._base_val = x
+        return super().__call__(x, bot)
+
+    def spawn(self):
+        return EmissionRef()
+
+
 class MyRef(RefBase, Owned):
     """
     --- The base class for all references
@@ -138,7 +150,6 @@ class MyRef(RefBase, Owned):
     """
     def __init__(self, path):
         super().__init__(path)
-        self._owner = None
     
     def set_owner(self, owner):
         if Owned.set_owner(self, owner):
@@ -149,15 +160,17 @@ class MyRef(RefBase, Owned):
                     p.set_owner(owner)
             return True
         return False
+    
+    def spawn(self):
+        return MyRef(self._path)
 
 
 class SuperRef(RefBase):
     def __init__(self, path):
         super().__init__(path)
-        self._super = None
 
     def set_super(self, super_):
-        if self._super is None:
+        if Owned.set_super(self, super_):
             self._base_val = super_
             for p in self._path:
                 if isinstance(p, InCall):
@@ -165,10 +178,13 @@ class SuperRef(RefBase):
             return True
         return False
 
+    def spawn(self):
+        return SuperRef(self._path)
+
 
 class ValRef(RefBase):
     
-    def __init__(self, val, path, args=None):
+    def __init__(self, val, path):
         """
         --- @param val - the val to 
         -- @param path - path to access the value 
@@ -176,12 +192,14 @@ class ValRef(RefBase):
         -- @param args - Args to pass if a function  {} or nil
         -- (if args is nil will not call)
         """
-        args = args or []
         super().__init__(path)
         self._base_val = val
     
     def update_val(self, val):
         self._val = val
+    
+    def spawn(self):
+        return ValRef(self._val, self._path)
 
 
 class NeuronRef(tako.Neuron, Owned, Child):
@@ -198,37 +216,34 @@ class NeuronRef(tako.Neuron, Owned, Child):
         neuron = self.get_ref(x)
         return neuron(x, bot)
     
+    def set_super(self, super_):
+        if super().set_super(super_):
+            if isinstance(self._ref, Child):
+                if not self._ref.set_super(super_):
+                    raise Exception('The super for the neuron has already been set')
+            return True
+        return False
+
+    def set_owner(self, owner):
+        if super().set_owner(owner):
+            if isinstance(self._ref, Owned):
+                if not self._ref.set_owner(owner):
+                    raise Exception('The owner for the neuron has already been set')
+            return True
+        return False
+    
     def get_ref(self, x=None):
         return self._ref(x)
 
     def bot_forward(self):
         return [self._ref]
 
+    def spawn(self):
+        return NeuronRef(self._ref)
 
 # TODO: Want to wrap ValRef with Emit... Emit(ValRef)  
 def r(ref):
     return NeuronRef(ref)
-
-"""
-class Idx(object):
-    def __init__(self, key):
-        self._key = key
-        
-    def __exec__(self, x):
-        return x.__getitem__(self._key)
-
-
-class Attribute(object):
-    
-    def __init__(self, key):
-        self._key = key
-        
-    def forward(self, x):
-        if type(x) == 'type':
-            return x.__getattribute__(x, self._key)
-        else:
-            return x.__getattribute__(self._key)
-"""
 
 
 class InCall(tako.Neuron, Owned, Child):
@@ -242,7 +257,6 @@ class InCall(tako.Neuron, Owned, Child):
     -- to use if a selfCall
     -- @output The output of the function
     """
-
     def __init__(self, *args, **kwargs):
         super().__init__()
         Owned.__init__(self)
@@ -297,6 +311,9 @@ class InCall(tako.Neuron, Owned, Child):
         else:
             return False
 
+    def spawn(self):
+        return InCall(*self._args, **self._kwargs)
+
 
 class Call(InCall):
     """
@@ -319,6 +336,9 @@ class Call(InCall):
         @param input[1] - input
         """
         return super().__call__((self._f, x), bot)
+    
+    def spawn(self):
+        return Call(self._f, *self._args, **self._kwargs)
 
 
 """
