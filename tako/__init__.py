@@ -152,7 +152,7 @@ class _Out(Neuron):
         raise AttributeError('An In flow cannot have any incoming neurons')
     
     def bot_forward(self, bot):
-        self.visit(bot)
+        return
 
     def __getitem__(self, key):
         return to_neuron(Sub(key))
@@ -603,8 +603,11 @@ class Arm(Neuron):
         super().__init__()
         self.strand = strand.encapsulate()
 
-    def bot_forward(self, bot):
-        self.strand.bot_forward(bot)
+    def visit(self, bot):
+        if super().visit(bot):
+            self.strand.bot_forward(bot)
+            return True
+        return False
 
     def __call__(self, x, bot=None):
         return self.strand(x)

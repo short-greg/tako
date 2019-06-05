@@ -5,8 +5,19 @@ from tako import ref
 def to_strand(neuron):
     return Strand([neuron]).encapsulate()
 
+class Flow(Neuron):
+    
+    def visit(self, bot):
+        if super().visit(bot):
+            self.bot_down(bot)
+            return True
+        return False
+    
+    def bot_down(self, bot):
+        raise NotImplementedError
 
-class Diverge(Neuron):
+
+class Diverge(Flow):
     '''
     A flow structure that sends each emission
     through a different processing strand
@@ -41,7 +52,7 @@ class Diverge(Neuron):
             else:
                 self._strands.append(to_neuron(None))
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         for strand in self._strands:
             strand.bot_forward(bot)
     
@@ -64,7 +75,7 @@ class Diverge(Neuron):
         )
 
 
-class Gate(Neuron):
+class Gate(Flow):
     '''
     Control structure that passes the output
     through a strand if it passes the condition
@@ -95,9 +106,9 @@ class Gate(Neuron):
         self._neuron = to_strand(neuron)
         self._pass_on = pass_on
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         self._cond.bot_forward(bot)
-        self._mod.bot_forward(bot)
+        self._neuron.bot_forward(bot)
 
     def __call__(self, x, bot=None):
         '''
@@ -123,7 +134,7 @@ class Gate(Neuron):
         )
 
 
-class Multi(Neuron):
+class Multi(Flow):
     '''
     Multi sends an input through several processing
     @input - value (will be sent through each stream)
@@ -151,7 +162,7 @@ class Multi(Neuron):
             else:
                 self._strands.append(to_strand(None))
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         for n in self._strands:
             n.bot_forward(bot)
 
@@ -168,7 +179,7 @@ class Multi(Neuron):
         )
 
 
-class Repeat(Neuron):
+class Repeat(Flow):
     '''
     Repeat a process until the process outputs
     false.
@@ -241,14 +252,14 @@ class Repeat(Neuron):
 
         return result
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         self._strand.bot_forward(bot)
 
     def spawn(self):
         return Repeat(self._strand.spawn(), self._break_on, self._output_all)
 
 
-class Switch(Neuron):
+class Switch(Flow):
     '''    
     Send the input[0] through a routing neuron
     which decides the neuron to send input[1]
@@ -266,7 +277,7 @@ class Switch(Neuron):
         default = kwargs.get('default')
         self._default = to_strand(default) if default is not None else None
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         self._router.bot_forward(bot)
         for n in self._strands:
             n.bot_forward(bot)
@@ -288,7 +299,7 @@ class Switch(Neuron):
         )
 
 
-class Cases(Neuron):
+class Cases(Flow):
     '''
     Case works like an IfElse block and
     where the first Case to succeed gets output
@@ -314,7 +325,7 @@ class Cases(Neuron):
             self._else = to_neuron(self._else)
         self._break_on = kwargs.get('break_on', True)
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         for n in self._modules:
             n.bot_forward(bot)
         self._else.bot_forward(bot)
@@ -337,7 +348,7 @@ class Cases(Neuron):
         )
 
 
-class _Merge(Neuron):
+class _Merge(Flow):
     '''
     Merge in the output from another neuron
     The neuron must not need an input
@@ -356,6 +367,10 @@ class _Merge(Neuron):
     '''
     def __init__(self, *args):
         self._to_merge = [to_strand(arg) for arg in args]
+    
+    def bot_down(self, bot):
+        for neuron in self._to_merge:
+            neuron.bot_forward(bot)
 
 
 class Onto(_Merge):
@@ -386,7 +401,7 @@ class Under(_Merge):
         return Under([strand.spawn() for strand in self._to_merge])
 
 
-class BotInform(Neuron):
+class BotInform(Flow):
     '''
     Neuron that informs the bot that has been 
     passed through with the output of the neuron 
@@ -413,7 +428,7 @@ class BotInform(Neuron):
             return result + str(hash(self))
         return result
 
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         self._strand.bot_forward(bot)
 
     def __call__(self, x, bot=None):
@@ -481,7 +496,7 @@ class BotProbe(Neuron):
         )
 
 
-class Store(Neuron):
+class Store(Flow):
     '''
     Stores the output of a neuron as the attribute "output"
     '''
@@ -495,7 +510,7 @@ class Store(Neuron):
     def reset(self):
         self.output = self._default
     
-    def bot_forward(self, bot):
+    def bot_down(self, bot):
         self._strand.bot_forward(bot)
     
     def __call__(self, x, bot=None):
