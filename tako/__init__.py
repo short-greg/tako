@@ -361,6 +361,8 @@ class Declaration(Neuron):
         """
         # need to have code to define a module in
         # here
+        if self.defined is not None:
+            return self.defined
         defined = to_neuron(self.module_cls(*self._args, **self._kwargs))
         self.defined = defined
         return defined

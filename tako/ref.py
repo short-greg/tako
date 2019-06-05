@@ -130,9 +130,6 @@ class EmissionRef(RefBase):
     
     
     '''
-    
-    
-    
     def __call__(self, x, bot=None):
         self._base_val = x
         return super().__call__(x, bot)

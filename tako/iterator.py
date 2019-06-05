@@ -4,19 +4,46 @@ import tako
 
 
 class Accessor(object):
+    '''
+    Used to access data of a dataset
+    Can use 'meta' accessors on top of the accessor to
+    change the order/manner in which data is accessed
+    '''
+    
     
     def __init__(self, data=None):
+        '''
+        :param data: The data to be accessed (needs to accessible
+        through __getitem__) (It might be good to add in
+        a dictionary accessor as well)
+        '''
+        self._wrapped = False
         self._data = data
 
-    def wrap(self, meta_iter):
-        meta_iter.data = self._data
-        self._data = meta_iter
+    def wrap(self, meta_acc):
+        '''
+        Wrap the accessor with a "meta_accessor"
+        The meta accessor can randomize the order in which
+        elements are retrieved, reverse the order
+        (or potentially do transformations)
+        :param meta_acc: MetaAccessor
+        '''
+        meta_acc.data = self._data
+        self._data = meta_acc
     
     def to_iter(self):
+        '''
+        :return Iter: an iterator for the mmeta accessor
+        '''
         return Iter(self._data)
     
     @property
     def data(self):
+        '''
+        Properties are used so that
+        the setting/getting can be altered in
+        child classes.
+        '''
         return self._data
     
     @data.setter
@@ -27,42 +54,53 @@ class Accessor(object):
         return len(self._data) if self._data is not None else 0
     
     def __getitem__(self, idx):
+        '''
+        :param int idx: The index of the item to retrieve
+        '''
         return self._data[idx]
     
     def __setitem__(self, idx, val):
+        '''
+        :param int idx: The index of the item to set
+        :param val: The value to set it to
+        '''
+        
         self._data[idx] = val
     
     def __neuron__(self):
+        '''
+        
+        '''
+        
         return AccessorNeuron(self)
+
+    def _spawn_data(self):
+        if isinstance(self._data, MetaAccessor):
+            return self._data.spawn()
+        return self._data
     
     def spawn(self):
-        # TODO: what if data is meta
-        # don't worry about it
-        return Accessor(self._data)
-
-
-class AccessorNeuron(tako.Neuron):
-    
-    def __init__(self, accessor, spawn_with_in=True):
-        super().__init__()
-        self._accessor = accessor
-        self._spawn_with_in = spawn_with_in
-    
-    def __call__(self, x, bot=None):
-        accessor = self._accessor.spawn()
-        accessor.data = x
-        return accessor
-    
-    def spawn(self):
-        return AccessorNeuron(self._accessor)
+        return Accessor(self._spawn_data())
 
 
 class MetaAccessor(object):
+    '''
+    Wraps the MetaAccessor object into a neuron
+    and outputs it when spawned
+    '''
     def __init__(self, data=None):
         self._data = data
     
+    def _spawn_data(self):
+        if isinstance(self._data, MetaAccessor):
+            return self._data.spawn()
+        return self._data
+    
     def spawn(self):
-        return MetaAccessor(self._data)
+        return MetaAccessor(self._spawn_data())
+    
+    def __neuron__(self):
+        return MetaAccessorNeuron()
 
     @property
     def data(self):
@@ -77,6 +115,44 @@ class MetaAccessor(object):
     
     def __setitem__(self, idx, val):
         raise NotImplementedError
+
+
+class AccessorNeuron(tako.Neuron):
+    '''
+    Wraps the Accessor object into a neuron
+    and outputs it when spawned
+    '''
+    
+    def __init__(self, accessor):
+        super().__init__()
+        self._accessor = accessor
+    
+    def __call__(self, x, bot=None):
+        accessor = self._accessor.spawn()
+        accessor.data = x
+        return accessor
+    
+    def spawn(self):
+        return AccessorNeuron(self._accessor)
+
+
+class MetaAccessorNeuron(tako.Neuron):
+    '''
+    Wraps the MetaAccessor object into a neuron
+    and outputs it when spawned
+    '''
+    
+    def __init__(self, accessor):
+        super().__init__()
+        self._meta_accessor = accessor
+    
+    def __call__(self, x, bot=None):
+        accessor = self._meta_accessor.spawn()
+        x.wrap(accessor)
+        return x
+    
+    def spawn(self):
+        return MetaAccessorNeuron(self._meta_accessor)
 
 
 class Shuffle(MetaAccessor):
@@ -107,7 +183,7 @@ class Shuffle(MetaAccessor):
         self._data[self._order[idx]] = val
 
     def spawn(self):
-        return Shuffle(self._data)
+        return Shuffle(self._spawn_data())
 
 
 class Batch(MetaAccessor):
@@ -120,14 +196,17 @@ class Batch(MetaAccessor):
         return math.ceil(len(self._data) / self._size)
     
     def __getitem__(self, idx):
-        return self._data[idx * self._size:min(len(self._data), (idx + 1) * self._size)]            
+        return self._data[
+            idx * self._size:min(
+                len(self._data), (idx + 1) * self._size
+            )]            
         #    return self._data:index(1, torch.range((index - 1) * self._size + 1, index * self._size):long())
 
     def __setitem__(self, idx, val):
         self._data[idx * self._size:min(len(self._data), (idx + 1) * self._size)] = val
 
     def spawn(self):
-        return Batch(self._data, self._size)
+        return Batch(self._spawn_data(), self._size)
 
 
 class Reverse(MetaAccessor):
@@ -155,6 +234,10 @@ class Reverse(MetaAccessor):
 class Iter(object):
     
     def __init__(self, data):
+        '''
+        Iterator class
+        :param data: The data to iterate on (Can be an accessor or a sequential)
+        '''
         self._data = data
         self._idx = 0
         self._end = len(data)
@@ -180,11 +263,18 @@ class Iter(object):
 
 
 class ToIter(tako.Neuron):
+    '''
+    Convert an iterator into a 
+    '''
     
     def __init__(self):
         super().__init__()
     
     def __call__(self, x, bot=None):
+        '''
+        :param Accessor x: the accessor to iterate on
+        :param bot: StoreBot
+        '''
         return Iter(x)
 
     def spawn(self):
@@ -192,16 +282,24 @@ class ToIter(tako.Neuron):
 
 
 class Iterate(tako.Neuron):
+    '''
+    Neuron that iterates on an iterator 
+    until done
+    '''
     
-    AT_END = tuple()
+    AT_END = False, None
     
     def __call__(self, x, bot=None):
+        '''
+        :param Iter x: the iterator to iterate on
+        :param bot: StoreBot
+        '''
         if not x.at_end():
             result = x.get()
             x.adv()
         else:
             result = self.AT_END
-        return result
+        return True, result
 
     def spawn(self):
         return Iterate()

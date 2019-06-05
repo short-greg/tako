@@ -6,72 +6,6 @@ def to_strand(neuron):
     return Strand([neuron]).encapsulate()
 
 
-class Delay(Neuron):
-    
-    """Delays the input to be output at a later timestep
-    
-    Parameters
-    ----------
-    x : (some sort of input)
-    
-    Returns
-    ----------
-    x
-    
-    :example 
-    
-    """
-    
-    def __init__(self, count=1, default=None):
-        '''
-        :param int count: The amount to delay by
-        :param default: The default value to output when there is
-        no input to output yet
-        '''
-        assert count >= 1, (
-            'The delay must be set to be ' +
-            'greater than or equal to 1'
-        )
-        self.default = default
-        self.count = count
-        self.vals = None
-        self.reset()
-    
-    @property
-    def count(self):
-        return self._count
-    
-    @count.setter
-    def count(self, v):
-        '''
-        Specify the delay count
-        Must be creater than 0
-        :param int v: The amount of delay
-        '''
-        assert v > 0, (
-            'The amount of delay must be ' +
-            'greater than 0.'
-        )
-        self._count = v
-    
-    def reset(self):
-        '''
-        :post: The values used for delay are reset
-        to the default values
-        '''
-        self.vals = [self.default] * self.count
-
-    def __call__(self, x, bot=None):
-        cur = self.vals.pop(0)
-        self.vals.append(x)
-        return cur
-
-    def spawn(self):
-        return Delay(
-            self.count, self.default
-        )
-
-
 class Diverge(Neuron):
     '''
     A flow structure that sends each emission
@@ -219,13 +153,13 @@ class Multi(Neuron):
                 self._strands.append(to_strand(None))
 
     def bot_forward(self, bot):
-        for n in self._modules:
+        for n in self._strands:
             n.bot_forward(bot)
 
     def __call__(self, x, bot=None):
         result = []
-        for cur_mod in self._modules:
-            result.append(cur_mod(x, bot))
+        for cur_strand in self._strands:
+            result.append(cur_strand(x, bot))
         return result
 
     def spawn(self):
@@ -240,11 +174,34 @@ class Repeat(Neuron):
     Repeat a process until the process outputs
     false.
     
-    @example strand = in_ >> Repeat(
+    @example 
+    class Update(tako.Neuron):
+        def __init__(self, lam, init_val=None):
+            self._init_val = init_val
+            self._lam = lam
+            self._cur_val = self._init_val
+        
+        def __call__(self, x, bot=None):
+            if self._cur_val is None:
+                self._cur_val = x
+            return lam(self._cur_val)
+        
+        def spawn(self):
+            return Update(self._lam, self._init_val)
+    
+    strand = in_ >> Repeat(
+        Update(lambda x: x + 1, init_value=0) >>
         Gate(cond=lambda x: x == 3, neuron=lambda x: x + 1)
     )
     
     strand(0) -> 3
+
+    strand = in_ >> Repeat(
+        Update(lambda x: x + 1, init_value=0) >>
+        Gate(cond=lambda x: x == 3, neuron=lambda x: x + 1), output_all=True
+    )
+    
+    strand(0) -> [1, 2, 3]
     '''
 
     # TODO: How to send the bot forward through the network???
@@ -252,19 +209,28 @@ class Repeat(Neuron):
     # at each time step? <- I think I don't...
     # I just need to figure out how to use the delay functionality
     
-    def __init__(self, mod, break_on=False, output_all=False):
+    def __init__(self, neuron, break_on=False, output_all=False):
+        '''
+        :param neuron: The neuron to repeat
+        :param break_on: the value to end the repeating on
+        :param output_all: whether to output the results
+        of each step of the "repeated" process
+        '''
         super().__init__()
-        self._module = mod
-        self._strand = to_strand(mod)
+        self._neuron = neuron
+        self._strand = to_strand(neuron)
         self._break_on = break_on
         self._output_all = output_all
     
     def __call__(self, x, bot=None):
+        '''
+        Repeatedly call self._stand until finished
+        '''
         all_results = []
         result = None
         
         while True:
-            cur_result = self._module(x, bot)
+            cur_result = self._strand(x, bot)
             if self._output_all:
                 all_results.append(result)
                 result = all_results
@@ -277,7 +243,7 @@ class Repeat(Neuron):
         return result
 
     def bot_forward(self, bot):
-        self._module.bot_forward(bot)
+        self._strand.bot_forward(bot)
 
     def spawn(self):
         return Repeat(self._strand.spawn(), self._break_on, self._output_all)
@@ -293,7 +259,6 @@ class Switch(Neuron):
       router,
       {p1, p2, p3}
     )
- 
     '''
     def __init__(self, router, *args, **kwargs):
         super().__init__()
@@ -323,6 +288,7 @@ class Switch(Neuron):
             default=self._default.spawn()
         )
 
+
 class Cases(Neuron):
     '''
     Case works like an IfElse block and
@@ -333,7 +299,7 @@ class Cases(Neuron):
     that output will become the output of
     the Case
 
-    @usage oc.Cases(
+    @example oc.Cases(
         Gate(cond1, proc1),
         Gate{cond2, proc2),
         else_=proc3
@@ -420,6 +386,197 @@ class Under(_Merge):
     def spawn(self):
         return Under([strand.spawn() for strand in self._to_merge])
 
+
+class BotInform(Neuron):
+    '''
+    Neuron that informs the bot that has been 
+    passed through with the output of the neuron 
+    (It has to be a warehouse)
+    '''
+
+    def __init__(self, neuronable, name='', use_neuron_key=True, auto_reset=True):
+        '''
+        :param neuronable: item to convert ot a neuron
+        :param name: The name to use when informing (to attach to the key) - string
+        :param use_neuron_key: Whether to use the neuron hash key when informing - boolean
+        :param auto_reset: whether to update the output automatically when a new input is passed in -
+        '''
+        self._base = neuronable
+        self._strand = to_strand(self._base)
+        self._auto_reset = auto_reset
+        self._name = name
+        self._use_neuron_key = use_neuron_key
+    
+    @property
+    def key(self):
+        result = self._name
+        if self._use_neuron_key is True:
+            return result + str(hash(self))
+        return result
+
+    def bot_forward(self, bot):
+        self._strand.bot_forward(bot)
+
+    def __call__(self, x, bot=None):
+        key = self.key
+        if not self._auto_reset:
+            y, found = bot.probe(key)
+            if found:
+                return y
+        y = self._strand(x, bot)
+        bot.inform(key, y)
+        return y
+    
+    def spawn(self):
+        return BotInform(
+            self._strand.spawn(), self._name, 
+            self._use_neuron_key, self._auto_reset
+        )
+
+
+class BotProbe(Neuron):
+    def __init__(self, my_ref=None, name='', default=None):
+        '''
+        Neuron that informs the bot that has been 
+        passed through with the output of the neuron 
+        (It has to be a warehouse)
+    
+        :param (None or Neuron) my_ref: The neuron to refer to - if not specified will only use name
+        :param string name: The name of the neuron to refer to 
+        :param default: The default value to output (if the probe fails)
+        '''
+        self._ref_base = my_ref
+        
+        if my_ref is not None:
+            self._ref = to_neuron(my_ref)
+        else:
+            self._ref = None
+
+        self._name = name
+        self._default = default
+    
+    @property
+    def key(self):
+        result = self._name
+        if self._ref is not None:
+            if isinstance(self._ref, ref.RefBase):
+                my_ref = self._ref(None)
+            else:
+                my_ref = self._ref
+            return result + str(my_ref.key)
+        return result
+
+    def __call__(self, x, bot=None):
+        assert x is None, (
+            'x should not be defined when ' +
+            'executing bot probe'
+        )
+        y, found = bot.probe(self.key)
+        if not found:
+            return self._default
+        return y
+    
+    def spawn(self):
+        return BotProbe(
+            self._ref_base, self._name, self._default
+        )
+
+
+class Store(Neuron):
+    '''
+    Stores the output of a neuron as the attribute "output"
+    '''
+    def __init__(self, neuronable, default=None):
+        neuron = to_neuron(neuronable)
+        self._strand = to_strand(neuron)
+        self.output = None
+        self._default = default
+        self.reset()
+    
+    def reset(self):
+        self.output = self._default
+    
+    def bot_forward(self, bot):
+        self._strand.bot_forward(bot)
+    
+    def __call__(self, x, bot=None):
+        '''
+        Call the "internal" strand and store the input
+        '''
+        y = self._strand(x, bot)
+        self.output = y
+        return y
+
+    def spawn(self):
+        return Store(
+            self._strand.spawn(), self._name, self._default
+        )
+
+
+class Delay(Neuron):
+    
+    """Delays the input to be output at a later timestep
+    
+    Parameters
+    ----------
+    x : (some sort of input)
+
+    Returns
+    ----------
+    x
+    :example 
+    """
+    
+    def __init__(self, count=1, default=None):
+        '''
+        :param int count: The amount to delay by
+        :param default: The default value to output when there is
+        no input to output yet
+        '''
+        assert count >= 1, (
+            'The delay must be set to be ' +
+            'greater than or equal to 1'
+        )
+        self.default = default
+        self.count = count
+        self.vals = None
+        self.reset()
+    
+    @property
+    def count(self):
+        return self._count
+    
+    @count.setter
+    def count(self, v):
+        '''
+        Specify the delay count
+        Must be creater than 0
+        :param int v: The amount of delay
+        '''
+        assert v > 0, (
+            'The amount of delay must be ' +
+            'greater than 0.'
+        )
+        self._count = v
+    
+    def reset(self):
+        '''
+        :post: The values used for delay are reset
+        to the default values
+        '''
+        self.vals = [self.default] * self.count
+
+    def __call__(self, x, bot=None):
+        cur = self.vals.pop(0)
+        self.vals.append(x)
+        return cur
+
+    def spawn(self):
+        return Delay(
+            self.count, self.default
+        )
+
+
 # class Adapter(Neuron):
     """
     Need to think a little more about this... and the how to handle
@@ -505,126 +662,3 @@ class Under(_Merge):
     def __exec__(self, x):
         raise NotImplementedError
     """
-
-class BotInform(Neuron):
-    '''
-    Neuron that informs the bot that has been 
-    passed through with the output of the neuron 
-    (It has to be a warehouse)
-    
-    '''
-
-    def __init__(self, neuronable, name='', use_neuron_key=True, auto_reset=True):
-        '''
-        :param neuronable: item to convert ot a neuron
-        :param name: The name to use when informing (to attach to the key) - string
-        :param use_neuron_key: Whether to use the neuron hash key when informing - boolean
-        :param auto_reset: whether to update the output automatically when a new input is passed in -
-        '''
-        self._base = neuronable
-        self._strand = to_strand(self._base)
-        self._auto_reset = auto_reset
-        self._name = name
-        self._use_neuron_key = use_neuron_key
-    
-    @property
-    def key(self):
-        result = self._name
-        if self._use_neuron_key is True:
-            return result + str(hash(self))
-        return result
-
-    def bot_forward(self, bot):
-        self._strand.bot_forward(bot)
-
-    def __call__(self, x, bot=None):
-        key = self.key
-        if not self._auto_reset:
-            y, found = bot.probe(key)
-            if found:
-                return y
-        y = self._strand(x, bot)
-        bot.inform(key, y)
-        return y
-    
-    def spawn(self):
-        return BotInform(
-            self._strand.spawn(), self._name, 
-            self._use_neuron_key, self._auto_reset
-        )
-
-class BotProbe(Neuron):
-    def __init__(self, my_ref=None, name='', default=None):
-        '''
-        Neuron that informs the bot that has been 
-        passed through with the output of the neuron 
-        (It has to be a warehouse)
-    
-        :param (None or Neuron) my_ref: The neuron to refer to - if not specified will only use name
-        :param string name: The name of the neuron to refer to 
-        :param default: The default value to output (if the probe fails)
-        '''
-        self._ref_base = my_ref
-        
-        if my_ref is not None:
-            self._ref = to_neuron(my_ref)
-        else:
-            self._ref = None
-
-        self._name = name
-        self._default = default
-    
-    @property
-    def key(self):
-        result = self._name
-        if self._ref is not None:
-            if isinstance(self._ref, ref.RefBase):
-                my_ref = self._ref(None)
-            else:
-                my_ref = self._ref
-            return result + str(my_ref.key)
-        return result
-
-    def __call__(self, x, bot=None):
-        assert x is None, (
-            'x should not be defined when ' +
-            'executing bot probe'
-        )
-        y, found = bot.probe(self.key)
-        if not found:
-            return self._default
-        return y
-    
-    def spawn(self):
-        return BotProbe(
-            self._ref_base, self._name, self._default
-        )
-
-
-class Store(Neuron):
-    '''
-    Stores the output of a neuron
-    
-    '''
-    def __init__(self, neuronable, default=None):
-        neuron = to_neuron(neuronable)
-        self._strand = to_strand(neuron)
-        self.output = None
-        self._default = default
-        self.reset()
-    
-    def reset(self):
-        self.output = self._default
-    
-    def bot_forward(self, bot):
-        self._strand.bot_forward(bot)
-    
-    def __call__(self, x, bot=None):
-        y = self._strand(x, bot)
-        self.output = y
-        return y
-
-    def spawn(self):
-        return Store(
-            self._strand.spawn(), self._name, self._default
-        )
