@@ -2,41 +2,63 @@ import tako
 from tako import to_neuron
 
 
-"""
---- References are nerves that perform an evaluation
--- on a table or function
--- 
--- There are 4 basic kinds of references
--- They can be created via placeholder as defined in the
--- placeholder class.  An example is 
--- OutputFunction() .. oc.input(oc.my.x, oc.my.y)
--- 
--- Types:
--- Input: Does an evaluation on the input that
--- is passed in from the preceding nerve.
--- My: Does an evaluation on the owner of the nerve
--- (the tako__ or table instance that the nerve belongs to)
--- Val: Does an evaluation on a value that is passed
--- into the nerve on construction
--- Ref : refers to a value that is passed in upon
--- initialization.
--- On top of that a NerveRef can be created using
--- oc.r(oc.Ref or placeholder) 
--- The nerve refs make the references accessible just
--- like other nerves.
-"""
+'''
+References are nerves that perform an evaluation
+on a table or function
+
+There are 4 basic kinds of references
+They can be created via placeholder as defined in the
+placeholder class.  An example is 
+OutputFunction() .. oc.input(oc.my.x, oc.my.y)
+ 
+Types:
+Input: Does an evaluation on the input that
+is passed in from the preceding nerve.
+
+My: Does an evaluation on the owner of the nerve
+(the tako__ or table instance that the nerve belongs to)
+
+Emission: Does an evaluation on the value that is passed
+in as an input
+
+Ref : refers to a value that is passed in upon
+initialization.
+
+Super_: refers to a value in the super class
+
+
+On top of that a NerveRef can be created using
+oc.r(oc.Ref or placeholder) 
+The nerve refs make the references accessible just
+like other nerves.
+'''
 
 class Attr(object):
+    '''
+    Used by references to specify that the current 
+    item to retrieve is an 'attribute' (i.e. the ref
+    has been specified with the 'attribute' operator '.'
+    
+    Like ref(datetime).datetime (The datetime key will be
+    an attribute)
+    '''
     
     def __init__(self, key):
         self._key = key
         
     def get(self, obj):
-        
         return object.__getattribute__(obj, self._key)
 
 
 class Idx(object):
+    '''
+    Used by references to specify that the current 
+    item to retrieve is an 'index' (i.e. the ref
+    has been specified with the 'getitem' operator []
+    
+    Like ref([0, 1, 2, 3])[2] -> The [2] will be referred
+    to with [2]
+    '''
     
     def __init__(self, key):
         self._key = key
@@ -46,11 +68,12 @@ class Idx(object):
 
 
 class RefBase(tako.Neuron):
-    """
-    --- @abstract
-    -- Base nerve for all value references 
-    -- (i.e. references to items other than arms)
-    """
+    '''
+    @abstract
+    Base nerve for all value references 
+    (i.e. references to items other than arms)
+    '''
+    
     def __init__(self, path):
         """
         --- @constructor
@@ -63,7 +86,11 @@ class RefBase(tako.Neuron):
 
     @staticmethod
     def _get_val(path, val, x):
-        print(path, val, x)
+        '''
+        :param path: The path specifying the value to retrieve (self._path)
+        :param val: the base value to retrieve from
+        :param x: The input into the neuron
+        '''
         prev_val = val
         for p in path:
             if type(p) == InCall:
@@ -74,6 +101,11 @@ class RefBase(tako.Neuron):
         return val
   
     def __call__(self, x, bot=None):
+        '''
+        Evaluates the reference and
+        returns it
+        '''
+        
         path = self._path
         
         if type(path) == str:
@@ -85,6 +117,11 @@ class RefBase(tako.Neuron):
 
 
 class Child(object):
+    '''
+    Child Mixin is used for Neurons which either contain
+    references to super_ classes or contain 
+    objects that contain such references
+    '''
     def __init__(self, child_of=None):
         self.set_super(child_of)
     
@@ -96,6 +133,11 @@ class Child(object):
 
 
 class Owned(object):
+    '''
+    The Owned Mixin is used for Neurons which either contain
+    references to owner classes or contain 
+    objects that contain such references
+    '''
     def __init__(self, owner=None):
         self.set_owner(owner)
     
@@ -125,10 +167,8 @@ Diverge(
 
 class EmissionRef(RefBase):
     '''
-    Emission Ref allows one to access members of the emission that was passed in and
-    perform operations such as indexing
-    
-    
+    Emission Ref allows one to access members of the
+    emission that was passed in and perform operations such as indexing
     '''
     def __call__(self, x, bot=None):
         self._base_val = x
@@ -139,18 +179,17 @@ class EmissionRef(RefBase):
 
 
 class MyRef(RefBase, Owned):
-    """
-    --- The base class for all references
-    -- @input Can be anything
-    -- @output whatever the evaluation of the reference
-    -- spits out
-    """
+    '''
+    The base class for all references
+    @input Can be anything
+    @output whatever the evaluation of the reference
+    spits out
+    '''
     def __init__(self, path):
         super().__init__(path)
     
     def set_owner(self, owner):
         if Owned.set_owner(self, owner):
-            print('Setting owner')
             self._base_val = owner
             for p in self._path:
                 if isinstance(p, InCall):
@@ -163,6 +202,9 @@ class MyRef(RefBase, Owned):
 
 
 class SuperRef(RefBase):
+    '''
+    
+    '''
     def __init__(self, path):
         super().__init__(path)
 
@@ -179,16 +221,19 @@ class SuperRef(RefBase):
         return SuperRef(self._path)
 
 
+# TODO: Want to wrap ValRef with Emit... Emit(ValRef)  ??
 class ValRef(RefBase):
+    '''
     
+    '''
     def __init__(self, val, path):
-        """
-        --- @param val - the val to 
-        -- @param path - path to access the value 
-        -- {string} or string
-        -- @param args - Args to pass if a function  {} or nil
-        -- (if args is nil will not call)
-        """
+        '''
+        @param val - the val to access in the reference
+        @param path - path to access the value 
+        {string} or string
+        @param args - Args to pass if a function  {} or nil
+        (if args is nil will not call)
+        '''
         super().__init__(path)
         self._base_val = val
     
@@ -203,7 +248,6 @@ class NeuronRef(tako.Neuron, Owned, Child):
     def __init__(self, ref):
         super().__init__()
         self._ref = tako.to_neuron(ref)
-        # self._to_probe = True
     
     @property
     def ref_key(self, x=None):
@@ -238,22 +282,21 @@ class NeuronRef(tako.Neuron, Owned, Child):
     def spawn(self):
         return NeuronRef(self._ref)
 
-# TODO: Want to wrap ValRef with Emit... Emit(ValRef)  
+
 def r(ref):
     return NeuronRef(ref)
 
 
 class InCall(tako.Neuron, Owned, Child):
-    """
-    --- Object to call a function that exists
-    -- within a reference.
-    -- 
-    -- @input {function, input, [object]}
-    -- input is the input into the ref
-    -- object is the object that contains the function
-    -- to use if a selfCall
-    -- @output The output of the function
-    """
+    '''
+    Object to call a function that exists
+    within a reference.
+    @input {function, input, [object]}
+    input is the input into the ref
+    object is the object that contains the function
+    to use if a selfCall
+    @output The output of the function
+    '''
     def __init__(self, *args, **kwargs):
         super().__init__()
         Owned.__init__(self)
@@ -313,15 +356,15 @@ class InCall(tako.Neuron, Owned, Child):
 
 
 class Call(InCall):
-    """
-    --- Calls a member method
-    -- In a sense it combines 'InCall' and 'Emit'
-    -- @input {function, input, [object]}
-    -- input is the input into the ref
-    -- object is the object that contains the function
-    -- to use if a selfCall
-    -- @output The output of the function
-    """
+    '''
+    Calls a member method
+    In a sense it combines 'InCall' and 'Emit'
+    @input {function, input, [object]}
+    input is the input into the ref
+    object is the object that contains the function
+    to use if a selfCall
+    @output The output of the function
+    '''
 
     def __init__(self, f, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -338,94 +381,78 @@ class Call(InCall):
         return Call(self._f, *self._args, **self._kwargs)
 
 
-"""
---- Placeholders are nerves used for convenience to
--- create references to other nerves, functions 
--- and data within the strand definition.
--- 
--- 
--- There are four basic types of placeholders
--- 
--- oc.input - Creates an input reference 
--- (the input into the nere)
---
--- oc.my - Creates a reference to the 
--- owner of the nerve (the Tako
--- or some other table/object) to 
--- access data within it
---
--- oc.super - Creates a reference to the 
--- super class/tako__ of the nerve
--- in order to call its 
--- oc.ref(value) - Creates a reference to the 
--- value that gets passed in
---
--- oc.r(oc.Ref) -> creates an NerveRef so that
--- the reference will be treated like
--- a nerve (will call inform, probe, informGrad
--- etc)
---
--- @usage - y = oc.r(oc.my.x) 
--- oc.r() creates an arm reference to 
--- the member x of self
--- @usage - nn.Linear(2, 2)
--- @usage oc.ref{y=1}.y <- will create a placeholder
---            referring to the table {y=1} and 
--- 
--- You can create arm/nerve references for my, 
--- super, and ref.
--- This is used for 'essentially' having multiple inputs
--- into a nerve.  There is no arm reference for input however
--- since input is the value that gets passed into the arm 
--- (as of now).
-"""
+'''
+Placeholders are nerves used for convenience to
+create references to other nerves, functions 
+and data within the strand definition.
+ 
+
+There are four basic types of placeholders
+ 
+oc.input - Creates an input reference 
+(the input into the nere)
+
+ref.my - Creates a reference to the owner of
+the nerve (the Tako or some other table/object) 
+to access data within it
+
+ref.super - Creates a reference to the super class/tako__ of the nerve
+in order to call its oc.ref(value) - Creates a 
+reference to the value that gets passed in
+
+oc.r(oc.Ref) -> creates an NerveRef so that
+the reference will be treated like
+a neuron
+
+@example - y = oc.r(oc.my.x) 
+oc.r() creates an arm reference to 
+
+the member x of self
+
+
+@example oc.ref{y=1}.y 
+<- will create a placeholder
+referring to the table {y=1} and 
+
+'''
 
 
 class Placeholder(object):
-    """
-    --- @abstract
-    -- 
-    -- Base class for Plachoelders
-    --
-    -- Used for declaring where a reference will
-    -- point.  Placholders are used in place
-    -- of actual Reference nerves for ease of use.
-    --
-    -- Concatenating a placholder with a nerve
-    -- will implicitly convert it to a Reference
-    -- nerve.
-    --
-    -- nn.Linear(2, 2) .. oc.my.x
-    -- Will create a strand with an oc.MyRef at the
-    -- end of the strand.
-    --
-    -- Calling a placeholder will create a function
-    -- call in the reference Call.  Placeholders can
-    -- be passed into the function call.
-    --
-    -- oc.my.x(oc.input) -> will call the function 
-    --   x with the input that was passed into the
-    --   
-    -- oc.my:x(oc.input) -> will call the function 
-    -- x with the input that was passed into the
-    -- nerve as the second argument and x as
-    -- the first argument.
-    --
-    -- oc.my.x(oc.input).y -> will pass the input into
-    -- the function x and then return the value
-    -- at key y in the index.
-    """
+    '''
+    @abstract
+    Base class for Plachoelders
+    Used for declaring where a reference will
+    point.  Placholders are used in place
+    of actual Reference nerves for ease of use.
+    
+    Concatenating a placholder with a nerve
+    will implicitly convert it to a Reference
+    nerve.
+    
+    nn.Linear(2, 2) >> ref.my.x
+    Will create a strand with an oc.MyRef at the
+    end of the strand.
+    
+    Calling a placeholder will create a function
+    call in the reference Call.  Placeholders can
+    be passed into the function call.
+    
+    ref.my.x(ref.emission) -> will call the function 
+    x with the input that was passed into the
+    
+    ref.my.x(oc.input) -> will call the function 
+    x with the input that was passed into the
+    nerve as the second argument and x as
+    the first argument.
+    
+    oc.my.x(oc.input).y -> will pass the input into
+    the function x and then return the value
+    at key y in the index.
+    '''
 
     def __init__(self):
-        """
-        --- @constructor 
-        -- @param refType - Whether a global
-        -- @param params.args - Arguments to a function call
-        -- @param params.index - Index to access from reference
-        -- @param params.reference - Reference to the item
-        -- if DEFINED
-        -- @param params._refType 
-        """
+        '''
+        '''
         self.__refindex__ = []
 
     def __str__(self):
@@ -461,16 +488,16 @@ Placeholder.__rshift__ = tako.Neuron.__rshift__
 
 
 class EmissionPlaceholder(Placeholder):
-    """
-    --- References the input that is passed into the
-    -- nerve.
-    --
-    -- oc.input(1) <- will pass 1 into the function
-    -- that gets passed into the nerve as an input.
-    --
-    -- oc.ref(x)(oc.input) will pass the input
-    -- into the function x as an argument.
-    """
+    '''
+    References the input that is passed into the
+    nerve.
+    
+    oc.input(1) <- will pass 1 into the function
+    that gets passed into the nerve as an input.
+    
+    ref.ref(x)(oc.input) will pass the input
+    into the function x as an argument.
+    '''
     def __neuron__(self):
         return EmissionRef(self.__refindex__)
     
@@ -479,16 +506,16 @@ class EmissionPlaceholder(Placeholder):
 
 
 class MyPlaceholder(Placeholder):
-    """
-    --- References the object that the nerve
-    -- belongs to.  Possibly a Tako
-    --
-    -- @usage oc.my:y(oc.input, oc.my.x) will
-    -- call the Tako's function 'y' and 
-    -- pass in y as the first argument, the
-    -- input as the second argument
-    -- and Tako's member 'x' as the third.
-    """
+    '''
+    References the object that the nerve
+    belongs to.  Possibly a Tako
+
+    @example ref.my.y(ref.emission, ref.my.x) will
+    call the Tako's function 'y' and 
+    pass in y as the first argument, the
+    input as the second argument
+    and Tako's member 'x' as the third.
+    '''
     def __neuron__(self):
         return MyRef(self.__refindex__)
 
@@ -497,13 +524,13 @@ class MyPlaceholder(Placeholder):
 
 
 class ValPlaceholder(Placeholder):
-    """
-    --- Used for referencing an arbitrary value.
-    --
-    -- @usage t = {1, 2, 3}
-    -- oc.ref(t)[1] will output 1
-    -- oc.ref(1) will also output 1
-    """
+    '''
+    Used for referencing an arbitrary value.
+
+    @example t = {1, 2, 3}
+    oc.ref(t)[1] will output 1
+    oc.ref(1) will also output 1
+    '''
     
     def __init__(self, val):
         """

@@ -156,6 +156,9 @@ class MetaAccessorNeuron(tako.Neuron):
 
 
 class Shuffle(MetaAccessor):
+    '''
+    Access the data in random order
+    '''
     
     def __init__(self, data=None):
         super().__init__(data)
@@ -187,6 +190,9 @@ class Shuffle(MetaAccessor):
 
 
 class Batch(MetaAccessor):
+    '''
+    Access the data in batches
+    '''
     
     def __init__(self, data=None, size=1):
         super().__init__(data)
@@ -210,6 +216,9 @@ class Batch(MetaAccessor):
 
 
 class Reverse(MetaAccessor):
+    '''
+    Access the data in reverse order
+    '''
     
     def __getitem__(self, idx):
         size = len(self._data)

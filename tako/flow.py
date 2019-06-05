@@ -136,7 +136,6 @@ class Multi(Neuron):
     @example strand = in_ >> Emit(1) >> Multi(p1, p2, p3)
     Here the output will be [p1(1), p2(1), p3(1)]
     '''
-
     def __init__(self, n=None, *args):
         super().__init__()
         streams = args
@@ -526,7 +525,6 @@ class Delay(Neuron):
     x
     :example 
     """
-    
     def __init__(self, count=1, default=None):
         '''
         :param int count: The amount to delay by
