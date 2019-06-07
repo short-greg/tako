@@ -9,8 +9,6 @@ class Accessor(object):
     Can use 'meta' accessors on top of the accessor to
     change the order/manner in which data is accessed
     '''
-    
-    
     def __init__(self, data=None):
         '''
         :param data: The data to be accessed (needs to accessible
@@ -68,10 +66,6 @@ class Accessor(object):
         self._data[idx] = val
     
     def __neuron__(self):
-        '''
-        
-        '''
-        
         return AccessorNeuron(self)
 
     def _spawn_data(self):
@@ -241,6 +235,9 @@ class Reverse(MetaAccessor):
 
 
 class Iter(object):
+    '''
+    Iterator class to use for iterating over a dataset
+    '''
     
     def __init__(self, data):
         '''
@@ -273,7 +270,7 @@ class Iter(object):
 
 class ToIter(tako.Neuron):
     '''
-    Convert an iterator into a 
+    Covert an accessor into an iterator
     '''
     
     def __init__(self):
@@ -292,8 +289,9 @@ class ToIter(tako.Neuron):
 
 class Iterate(tako.Neuron):
     '''
-    Neuron that iterates on an iterator 
-    until done
+    Neuron that iterates on the iterator 
+    that is passed in until the iterator
+    reaches the end
     '''
     
     AT_END = False, None

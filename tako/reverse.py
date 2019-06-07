@@ -3,25 +3,22 @@ import tako
 '''
 Reverse a particular nerve 
 (can be used in autoencoders etc)
---
--- nn.Linear:rev(nn.Linear(2, 4)) -> this will create
---   an nn.Linear(4, 2) upon definition
--- 
--- self.arm.encoder = nn.Linear(2, 4)
--- self.arm.decoder = self.encoder:rev()
--- 
--- self.arm.autoencode = r(oc.my.encoder) .. r(oc.my.decoder)
--- 
--- self.autoencode:stimulate(torch.randn(2, 2)) -> will
---   output a 2 x 2 tensor
--- 
--- t:rev()
--- nn.Linear:rev() <- no module have to 
--- define dynamically overwrite the 
---
--- DeclarationReverse is used for declarations
--- n = nn.Linear:d(2, 4)
--- n:rev() -> creates a DeclarationReverse
+
+Rev(nn.Linear, 2, 4) -> this will create
+an nn.Linear(4, 2) upon definition
+
+
+self.encoder = nn.Linear(2, 4)
+self.decoder = Rev(self.encoder)
+
+self.autoencode = r(my.encoder) >> my.decoder
+
+self.auotencode(torch.randn(2))
+
+
+DeclarationReverse is used for declarations
+n = nn.Linear:d(2, 4)
+nrev =  n.rev() -> creates a DeclarationReverse
 '''
 
 class Reverse(tako.Declaration):
@@ -29,17 +26,18 @@ class Reverse(tako.Declaration):
     Reverse operation for a particular nerve
     The nerve should be defined within the 
     same Tako.
-    --
-    -- @param nerve - The nerve (or combination of 
-    -- nerves to reverse) - oc.Nerve or {oc.Nerve}
-    -- @param dynamic - Whether or not the nerve
-    -- should be reversed with each update of the output
-    -- If it is static, then the type of Reverse will
-    -- change to the reversed nerve once it has been
-    -- defined
     '''
     
     def __init__(self, neuron, dynamic=False):
+        '''
+        @param neuron - The nerve (or combination of 
+        neurons to reverse) - oc.Nerve or {oc.Nerve}
+        @param dynamic - Whether or not the nerve
+        should be reversed with each update of the output
+        If it is static, then the type of Reverse will
+        change to the reversed nerve once it has been
+        defined
+        '''
         super().__init__(self)
         assert(
           type(dynamic) == 'boolean',
@@ -59,8 +57,7 @@ class Reverse(tako.Declaration):
 
 class DeclarationReverse(Reverse):
     '''
-    --! @param
-    
+    The reverse neuron for a Declaration neuron
     '''
     def __init__(self, decl, dynamic):
         assert isinstance(decl, tako.Declaration)

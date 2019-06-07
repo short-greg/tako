@@ -138,6 +138,9 @@ class Call(Bot):
             return self.cond(neuron)
         return False
     
+    def _visit(self, neuron):
+        object.__getattribute__(neuron, self._func_name)(*self._args)
+    
     def spawn(self):
         return Call(
             self._func_name, self._args, self.cond, self.process, self.report

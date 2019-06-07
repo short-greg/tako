@@ -28,8 +28,8 @@ Super_: refers to a value in the super class
 
 
 On top of that a NerveRef can be created using
-oc.r(oc.Ref or placeholder) 
-The nerve refs make the references accessible just
+oc.r(Ref or placeholder) 
+The neuron refs make the references accessible just
 like other nerves.
 '''
 
@@ -224,8 +224,11 @@ class SuperRef(RefBase):
 # TODO: Want to wrap ValRef with Emit... Emit(ValRef)  ??
 class ValRef(RefBase):
     '''
+    Used to 'reference' a particular value
     
+    ref.ref(datetime).datetime(2019, 10, 1)
     '''
+
     def __init__(self, val, path):
         '''
         @param val - the val to access in the reference
@@ -559,6 +562,11 @@ class SuperPlaceholder(Placeholder):
 
 
 class _Refmeta(object):
+    '''
+    the meta for 'my', 'emission' and 'super' refs
+    In order to create new objects of those
+    types.
+    '''
     
     def __init__(self, refmeta_type, args=None):
         self._refmeta_type = refmeta_type
@@ -578,15 +586,28 @@ class _Refmeta(object):
 
 
 class _Valrefmeta(_Refmeta):
+    '''
+    the Meta for 'val' refs in order to create
+    a new val
+    '''
     
     def __init__(self, val):
         super().__init__(ValPlaceholder, [val])
 
-
+# create a reference to the
+# object which possesses the neuron
 my = _Refmeta(MyPlaceholder)
+# create a reference to the output of
+# a neuron
 emission = _Refmeta(EmissionPlaceholder)
+# Create a reference to an object in the
+# super class
 super_ = _Refmeta(SuperPlaceholder)
 
+
+# For ValRef a function is used
+# because the object that is
+# being referenced is unknown
 def ref(val):
     return _Valrefmeta(val)
 

@@ -397,6 +397,7 @@ def _cls_decl(cls, *args, **kwargs):
     return Declaration(cls, args, kwargs)
 
 Neuron.d = _cls_decl
+Stimulator.d = _cls_decl
 
 
 class Stem(object):

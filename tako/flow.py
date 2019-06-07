@@ -411,9 +411,9 @@ class BotInform(Flow):
     def __init__(self, neuronable, name='', use_neuron_key=True, auto_reset=True):
         '''
         :param neuronable: item to convert ot a neuron
-        :param name: The name to use when informing (to attach to the key) - string
-        :param use_neuron_key: Whether to use the neuron hash key when informing - boolean
-        :param auto_reset: whether to update the output automatically when a new input is passed in -
+        :param string name: The name to use when informing (to attach to the key) - string
+        :param bool use_neuron_key: Whether to use the neuron hash key when informing - boolean
+        :param bool auto_reset: whether to update the output automatically when a new input is passed in -
         '''
         self._base = neuronable
         self._strand = to_strand(self._base)
@@ -449,6 +449,11 @@ class BotInform(Flow):
 
 
 class BotProbe(Neuron):
+    '''
+    Neuron that retrieves data from a bot
+    that a particular neuron set
+    '''
+
     def __init__(self, my_ref=None, name='', default=None):
         '''
         Neuron that informs the bot that has been 
@@ -501,6 +506,10 @@ class Store(Flow):
     Stores the output of a neuron as the attribute "output"
     '''
     def __init__(self, neuronable, default=None):
+        '''
+        :param neuronable: item that can be changed to a neuron
+        :param default: the default value to store
+        '''
         neuron = to_neuron(neuronable)
         self._strand = to_strand(neuron)
         self.output = None
