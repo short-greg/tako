@@ -264,7 +264,9 @@ class NeuronRef(tako.Neuron, Owned, Child):
         if super().set_super(super_):
             if isinstance(self._ref, Child):
                 if not self._ref.set_super(super_):
-                    raise Exception('The super for the neuron has already been set')
+                    raise Exception(
+                        'The super for the neuron has already been set'
+                        )
             return True
         return False
 
@@ -272,7 +274,9 @@ class NeuronRef(tako.Neuron, Owned, Child):
         if super().set_owner(owner):
             if isinstance(self._ref, Owned):
                 if not self._ref.set_owner(owner):
-                    raise Exception('The owner for the neuron has already been set')
+                    raise Exception(
+                        'The owner for the neuron has already been set'
+                        )
             return True
         return False
     

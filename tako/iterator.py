@@ -164,6 +164,10 @@ class Shuffle(MetaAccessor):
     
     @data.setter
     def data(self, data):
+        '''
+        Sets the data and creates a new order to retrieve
+        the data
+        '''
         self._data = data
         if data is not None:
             self._order = np.random.permutation(len(data))

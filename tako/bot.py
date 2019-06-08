@@ -2,8 +2,6 @@ class Bot(object):
     """
     Bots are used in order to traverse the information network and perform
     operations on each of the neurons in the network
-    
-    
     """
     
     def __init__(self):
@@ -11,12 +9,25 @@ class Bot(object):
         self._visited = {}
         
     def stop_on(self, neuron):
+        '''
+        Set a neuron that the bot should stop
+        going forwraad on
+        '''
         self._stop_on = neuron
     
     def has_visited(self, neuron):
+        '''
+        :param neuron: Neuron to check if visited
+        :return boolean: whether the bot has visited a particular neuron
+        '''
         return neuron in self._visited 
     
     def to_visit(self, neuron):
+        '''
+        :param neuron: neuron to check
+        :return: whether the bot should visit a particular neuron
+        '''
+        
         return not self.has_visited(neuron) and self._stop_on is not neuron
 
     def reset(self):
@@ -27,8 +38,13 @@ class Bot(object):
         self._visited = {}
     
     def _visit(self, neuron):
-        # The base class doesn't do anything
-        # should override this
+        '''
+        Visit a particular neuron
+        
+        The base class doesn't do anything
+        should override this behavior
+        :param neuron: the neuron to visit
+        '''
         pass
 
     def __call__(self, neuron):
@@ -51,7 +67,6 @@ class Warehouse(Bot):
     that a particular neuron is called by multiple 
     -- I added in probe_output ... I'm not sure if this is a
     -- good solution though because right now i am not setiting the output
-    How 
     
     """
     NO_OUTPUT = None, None
@@ -82,37 +97,29 @@ class Warehouse(Bot):
 
 
 class Call(Bot):
-    """
-    --- Call is for creating a bot that 
-    -- will call a member of a nerve that it
-    -- passes through.
-    --
-    -- @usage oc.bot.call:relax() ->
-    -- will create a bot that can
-    -- relax nerves
-    --
-    -- For 'class methods' use dot
-    -- oc.bot.call.func(
-    --   args={<arg>}
-    --   cond=
-    --    function(self, nerve) 
-    --      return nerve.func ~= nil 
-    --    end
-    -- )
-    --
-    -- For 'instance methods' use colon and it will
-    -- pass self as the first algorithm
-    -- 
-    -- oc.bot.call:func(
-    --   args={<arg>}
-    --   cond=function(self, nerve) 
-    --      return nerve.func ~= nil 
-    --   end
-    -- )
-    -- 
-    -- Calls the function relax on all nerves
-    --
-    """
+    '''
+    Call is for creating a bot that
+    will call a member of a nerve that it
+    passes through.
+    
+    @usage call.relax() ->
+    will create a bot that can
+    relax nerves
+    
+    For 'class methods' use dot
+    call.<func>(
+        args={<arg>}
+        cond=lambda nerve, func: hasattr(nerve, func)
+
+    For 'instance methods' use colon and it will
+    pass self as the first algorithm
+    
+    call.<func>(
+        args={<arg>}
+        cond=lambda nerve, func: hasattr(nerve, func)
+    )
+    Calls the function relax on all nerves
+    '''
     
     def base_cond(self, neuron=None):
         return hasattr(neuron, self._func_name)

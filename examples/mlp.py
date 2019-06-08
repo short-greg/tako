@@ -13,6 +13,7 @@ from tako import in_, nil_
 from tako import flow
 
 
+
 criterion_neuron = tako.Stem(
     tako.OpNeuron.d(tako.arg[0], tako.UnpackStimulator.d())
 )
