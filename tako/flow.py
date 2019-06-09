@@ -6,8 +6,11 @@ def to_strand(neuron):
     return Strand([neuron]).encapsulate()
 
 class Flow(Neuron):
-    
-    def visit(self, bot):
+    '''
+    Base class for flow neurons that contain
+    other neurons
+    '''
+    def _visit(self, bot):
         if super().visit(bot):
             self.bot_down(bot)
             return True
@@ -26,7 +29,7 @@ class Diverge(Flow):
     
     
     :@example:
-      strand = nil_ >> Emit([1, 2, 3]) >> oc.Diverge{
+      strand = nil_ >> Emit([1, 2, 3]) >> Diverge{
         p1, p2, p3
       }
     This will send 1, 2, and 3 through 

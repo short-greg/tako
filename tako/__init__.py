@@ -1,18 +1,26 @@
 from tako import bot
 
-######################################################
-# Core Neuron Modules
-# 
-# A flow is the core component of the information
-# network
-#
-######################################################
+'''
+Core Neuron Modules
+
+A flow is the core component of the information
+network
+
+'''
 
 class Neuron(object):
-    """
-    The base flow class
+    '''
+    Neuron is a node in an information network
     
-    """
+    Neurons can be linked together to create a linked
+    list (pipeline) of processes 
+    in_ >> p1 >> p2 >> p3
+    
+    Each neuron must implement the spawn function
+    which creates a neuron of the same type with the
+    members passed to the constructor
+    
+    '''
     def __init__(self):
         self.incoming = None
         self.outgoing = None
@@ -32,15 +40,13 @@ class Neuron(object):
         '''
         Spawn a new neuron of this type with the same member variables
         '''
-        
         return Neuron()
     
     def bot_forward(self, bot):
         '''
         Pass a bot forward through the network
         :param Bot bot: The bot to pass forward
-        '''
-        
+        '''  
         if self.visit(bot) and self.outgoing is not None:
             self.outgoing.bot_forward(bot)
     
@@ -80,25 +86,20 @@ class Neuron(object):
         '''
         assert self.outgoing is None, 'There can only be one incoming flow for a flow'
         self.outgoing = other
-    
-    # for bot
-    # use hash(self) <- get the hash for the flow and 
-    # pass it to the bot.. 
-    # or just send the bot self... not sure which to do yet
 
     def __call__(self, x, bot):
-        """
+        '''
         Execute the operation specified by the neuron (In the base neuron there is no
         operation).
         :param x: The input into the neuron (can be anything)
         :param Bot bot: a bot to pass through the network (can be used by
-        neurons that store info or probe the bot for info)
-        """
+        neurons that store info or probe the bot for info).
+        '''
         raise NotImplementedError
 
 
 class _In(Neuron):
-    """
+    '''
     A starting neuron for a Strand. _In indicates that there will be an input
     into the strand.
     
@@ -115,7 +116,7 @@ class _In(Neuron):
     
     strand = in_ >> op1 >> op2 >> out_
     
-    """
+    '''
     def __init__(self):
         super().__init__()
     
@@ -136,12 +137,11 @@ class _In(Neuron):
 
 
 class _Out(Neuron):
-    """
+    '''
     An ending neuron for a Strand.
     
     Used for convenience to create a strand which has declaration neurons
-    
-    """
+    '''
     def __init__(self):
         super().__init__()
     
@@ -165,14 +165,14 @@ class _Out(Neuron):
 
 
 class _Nil(_In):
-    """
+    '''
     A starting neuron for a Strand. _Nil indicates that there will be no
     input into the strand
     
     Primarily a convenience for creating 'strands' with Emit Neurons
     This is used as the starting flow for the case where there
     is no input into the network
-    """
+    '''
     def __init__(self):
         super().__init__()
     
@@ -191,7 +191,8 @@ class _Nil(_In):
     def __call__(self, x, bot=None):
         assert x is None, 'The input to a Nil flow must be None'
         return x
-    
+
+
 class _InCreator(object):
     '''
     Convenience class to create an _In neuron using in_
@@ -227,33 +228,16 @@ class _NilCreator(object):
 nil_ = _NilCreator()
 
 
-class Stimulator(object):
-    '''
-    Stimulator is used to stimulate a particular operation
-    in the op nerve
-    '''
-    def __init__(self, op):
-        self.x = None
-        self.op = op
-    
-    def __call__(self, x, bot=None):
-        return self.op(x)
-
-
-class UnpackStimulator(Stimulator):
-    '''
-    Stimulator used for operations for which the input 
-    should be unpacked
-    '''
-    def __call__(self, x, bot=None):
-        return self.op(*x)
-
-
 class Sub(Neuron):
+    '''
+    Index the emission that has been passed in
+    
+    '''
     
     def __init__(self, index): 
         '''
         Neuron to call __getitem__ on the input that is passed in
+        :param index: The index to retrieve
         '''
         super().__init__()
         self.index = index
@@ -266,26 +250,40 @@ class Sub(Neuron):
 
 
 class OpNeuron(Neuron):
-    """
-    Op flow calls an particular operation
-    """
-    def __init__(self, op, stimulator_cls=Stimulator):
+    '''
+    Calls the object/function that is passed
+    in as op
+    '''
+    def __init__(self, op):
+        '''
+        :param op: a callable (takes one parameter)
+        '''
         super().__init__()
         self._op = op
-        self._stimulator_cls = stimulator_cls
-        self.stimulator = stimulator_cls(op)
-    
+
     def spawn(self):
-        return OpNeuron(self._op, self._stimulator_cls)
+        return OpNeuron(self._op)
     
     def __call__(self, x, bot=None):
-        return self.stimulator(x)
+        return self._op(x)
+
+
+class UnpackOpNeuron(OpNeuron):
+    '''
+    Calls the member operation unpacking the
+    inputs that have been passed in
+    '''
+    def spawn(self):
+        return UnpackOpNeuron(self._op)
+    
+    def __call__(self, x, bot=None):
+        return self._op(*x)
 
 
 class Noop(Neuron):
-    """
+    '''
     Noop neurons do not perform any operation
-    """
+    '''
     def spawn(self):
         return Noop()
     
@@ -293,7 +291,7 @@ class Noop(Neuron):
         return x
 
 # TODO: Refactor.. duplicating Stem
-def update_arg(arg, *args, **kwargs):
+def _update_arg(arg, *args, **kwargs):
     if isinstance(arg, Arg):
         return arg.update(*args, **kwargs)
     else:
@@ -301,11 +299,11 @@ def update_arg(arg, *args, **kwargs):
 
 
 class Arg(object):
-    """
+    '''
     Args are used in stems to provide variable
     rather than constant arguments to the
     neurons created by the stem
-    """
+    '''
     def __init__(self, key):
         self._key = key
 
@@ -321,10 +319,10 @@ class Arg(object):
 
 
 class _Arg(object):
-    """
+    '''
     
     
-    """
+    '''
     def __getattribute__(self, key):
         return Arg(key)
 
@@ -337,10 +335,10 @@ arg = _Arg()
 # TODO: This is not right right now
 # TODO: This is not right right now
 class Declaration(Neuron):
-    """    
+    '''    
     Declaration will define a neural network
     
-    """
+    '''
     def __init__(self, module_cls, args=None, kwargs=None, dynamic=False):
         super().__init__()
         args = args or []
@@ -352,15 +350,13 @@ class Declaration(Neuron):
         self._dynamic = dynamic
 
     def update_args(self, args, kwargs):
-        self._kwargs = {k: update_arg(arg, *args, **kwargs) for k, arg in self._kwargs.items()}
-        self._args = [update_arg(arg, *args, **kwargs) for arg in self._args]
+        self._kwargs = {k: _update_arg(arg, *args, **kwargs) for k, arg in self._kwargs.items()}
+        self._args = [_update_arg(arg, *args, **kwargs) for arg in self._args]
         
     def define(self, x=None):
-        """
+        '''
         
-        """
-        # need to have code to define a module in
-        # here
+        '''
         if self.defined is not None:
             return self.defined
         defined = to_neuron(self.module_cls(*self._args, **self._kwargs))
@@ -397,7 +393,6 @@ def _cls_decl(cls, *args, **kwargs):
     return Declaration(cls, args, kwargs)
 
 Neuron.d = _cls_decl
-Stimulator.d = _cls_decl
 
 
 class Stem(object):
@@ -410,14 +405,14 @@ class Stem(object):
         self._kwargs = kwargs
     
     def __call__(self, *args, **kwargs):
-        updated_kwargs = {k: self.update_arg(arg, kwargs) for k, arg in self._kwargs.items()}
-        updated_args = [update_arg(arg, *args, **kwargs) for arg in self._args]
+        updated_kwargs = {k: _update_arg(arg, kwargs) for k, arg in self._kwargs.items()}
+        updated_args = [_update_arg(arg, *args, **kwargs) for arg in self._args]
 
         # need to use a bot to update it for 
         bot.call.update_arg(
             cond=lambda x: isinstance(x, Declaration),
             args=(args, kwargs)
-        )
+            )
         return self._cls(*updated_args, **updated_kwargs)
 
 
@@ -429,12 +424,6 @@ class Emit(Neuron):
     def __init__(self, to_emit):
         super().__init__()
         self._to_emit = to_emit
-        """
-        if isinstance(to_emit, Ref):
-            self.__call__ = self._evaluate_ref
-        else:
-            self.__call__ = self._evaluate
-        """
 
     def spawn(self):
         return Emit(self._to_emit)
@@ -443,18 +432,8 @@ class Emit(Neuron):
         assert x is None, (
             'Cannot inform an Emit flow with a value ' +
             '(Must pass not value or None)'
-        )
+            )
         return super().inform(x, bot)
-
-    """
-    def _evaluate(self, x):
-        assert x is None, 'Emit Neurons must not take an input.'
-        return self._to_emit
-    
-    def _evaluate_ref(self, x):
-        assert x is None, 'Emit Neurons must not take an input.'
-        return self._to_emit()
-    """
 
     def __call__(self, x=None, bot=None):
         assert x is None, 'Emit Neurons must not take an input.'
@@ -470,6 +449,7 @@ def to_neuron(x):
         it is already a flow so nothing needs to be done
         """
         return x
+
     if hasattr(x, '__neuron__'):
         """
         There is a dedicated method to convert the
@@ -487,28 +467,34 @@ def to_neuron(x):
     return OpNeuron(x)
 
 
-######################################################
-# Strand and Arm are the core classes used to control 
-# flow. 
-# Arm encapsulates Strand into a flow
-# so that Arm can then be connected to other neurons
-#
-######################################################
+'''
+Strand and Arm are the core classes used to control flow. 
+Arm encapsulates Strand into a flow
+so that Arm can then be connected to other neurons
+'''
 
 
 class Strand(object):
     """
+    Strand
     
+    Strands are used for building process pipelines
+    They are implemented as linked lists rather than
+    lists.
+    The reason for this is primarily because of the use of
+    'declaration' neurons which get replaced.
+    
+    strand = in_ >> p1 >> p2 >> out_
     """
     def __init__(self, neurons):
         assert len(neurons) > 0, 'There must be more than one operation'
         self.lhs, self.rhs = self._connect_ops(neurons)
 
     def _connect_ops(self, neurons):
-        """
+        '''
         Links a list of ops together in order to form a 'strand'
         
-        """
+        '''
         lhs = None
         rhs = None
         prev = None
@@ -524,6 +510,10 @@ class Strand(object):
         return lhs, rhs
     
     def __getitem__(self, index):
+        '''
+        :param index: Index of the neuron to retreive
+        :return: neuron
+        '''
         i = 0
         cur = self.lhs
         while cur is not self.rhs:
@@ -536,17 +526,29 @@ class Strand(object):
             return cur
         raise IndexError
     
-    def append(self, mod):
-        rhs = to_neuron(mod)
+    def append(self, neuronable):
+        '''
+        Attach the neuronable object to the 
+        end of the strand
+        '''
+        rhs = to_neuron(neuronable)
         self.rhs.connect(rhs)
         self.rhs = rhs
     
-    def prepend(self, mod):
-        lhs = to_neuron(mod)
+    def prepend(self, neuronable):
+        '''
+        Attack the neuronable object to the
+        beginning of the strand
+        '''
+        lhs = to_neuron(neuronable)
         lhs.connect(self.lhs)
         self.lhs = lhs
 
     def encapsulate(self, left_nil=False):
+        '''
+        Enclose the strand with an _In neuron
+        on the front and an _Out neuron on the end.
+        '''
         if not isinstance(self.rhs, _Out):
             self.append(_Out())
         if not isinstance(self.lhs, _In):
@@ -558,9 +560,19 @@ class Strand(object):
         return self
 
     def arm(self):
+        '''
+        TODO: Consider whether the side effects (enclosing
+        of the strand are permissible)
+        Convert the Strand enclosing the strand
+        (Remember that Arm will encloses the strand )
+        :return: Arm
+        '''
         return Arm(self)
 
     def bot_forward(self, bot):
+        '''
+        
+        '''
         self.lhs.bot_forward(bot)
     
     def spawn(self):
@@ -574,14 +586,12 @@ class Strand(object):
 
     def __call__(self, x=None, bot=None):
         return self.lhs.forward(x, bot)
-        # self.lhs.inform(x, bot)
-        # return self.rhs.probe()
     
     def __rshift__(self, other):
-        """
+        '''
         
-        # Do I just want to call append????
-        """
+        :return Strand
+        '''
         self.append(other)
         return self
 
@@ -592,13 +602,15 @@ Strand.__neuron__ = Strand.arm
 def neuron_rshift(self, other):
     return Strand([self, other])
 
+
 Neuron.__rshift__ = neuron_rshift
 
 
 class Arm(Neuron):
     """
     Arms wrap strands so that they can be
-    like neurons
+    like neurons and concatentated to other
+    processes.
     """
     def __init__(self, strand):
         super().__init__()
@@ -614,7 +626,6 @@ class Arm(Neuron):
         return self.strand(x)
 
     def spawn(self):
-        # Need to create this method
         return Arm(self.strand.spawn())
     
     @staticmethod
@@ -622,19 +633,42 @@ class Arm(Neuron):
         return Arm(Strand([neuron]))
 
 
-######################################################
-# 
-# 
-#
-######################################################
+'''
+Tako modules allow for the creation of classes
+that have arms defined in the class definition
+rather than defining them in the constructor.
+
+
+'''
+
+
+def to_arm(val):
+    '''
+    Converts a strand to an arm if the parameters
+    This is used for populating classes of type Tako
+    
+    :param val: the object to convert to an arm
+    '''
+    if isinstance(val, Strand):
+        return Arm(val)
+
+    assert isinstance(val, Arm), (
+        'Input to to_arm must be "Arm" or "Strand"'
+        )
+    return val
+
+
+def is_arm(v):
+    return isinstance(v, Strand) or isinstance(v, Arm)
+
 
 class _TakoType(type):
-    """
-    
-    
-    """
-    def __new__(cls, name, bases, attr):
-        
+    '''
+    Metaclass used for classes of type 
+    Tako. It adds any class members of the
+    type 'arm' or 'strand' to the Tako type.
+    '''
+    def __new__(cls, name, bases, attr): 
         __arms__ = {}
         for k, v in attr.items():
             if isinstance(v, Strand) or isinstance(v, Arm):
@@ -649,31 +683,17 @@ class _TakoType(type):
 
         return super().__new__(cls, name, bases, attr)
 
-import inspect
-
-
-def to_arm(val):
-    if isinstance(val, Strand):
-        return Arm(val)
-
-    assert isinstance(val, Arm), 'Input to to_arm must be "Arm" or "Strand"'
-    return val
-
-
-def is_arm(v):
-    return isinstance(v, Strand) or isinstance(v, Arm)
-
 
 class Tako(object, metaclass=_TakoType):
     """
     
     """
     class _TakoAttr(object):
-        """
-        Helper class used by tako__ to control the arms
-        owner and parent should be contained in the flow not the op
-        
-        """
+        '''
+        Helper class used by Tako to control the arms
+        owner. It enables defining each arm
+        in a similar manner methods with overrideing
+        '''
         def __init__(
             self, arms, cls=None, owner=None, 
             parent=None
@@ -695,10 +715,10 @@ class Tako(object, metaclass=_TakoType):
                 arm.bot_forward(bot.call.set_owner(owner))
     
         def set_parent(self, parent):
-            """
+            '''
             A 'SuperRef' will call this TakoAttr class when acting on it
             which will in turn call this TakoAttr if the attribute is an arm
-            """
+            '''
             self._parent = parent
             for _, arm in self._arms.items():
                 arm.bot_forward(bot.call.set_parent(parent))

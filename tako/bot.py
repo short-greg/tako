@@ -1,3 +1,7 @@
+# TODO: Consider whether to continue to use
+# visit since there cannot be loops anymore
+
+
 class Bot(object):
     """
     Bots are used in order to traverse the information network and perform
@@ -48,6 +52,9 @@ class Bot(object):
         pass
 
     def __call__(self, neuron):
+        '''
+        Visit the neuron if it has not been visited yet
+        '''
         if not self.has_visited(neuron):
             self._visit(neuron)
             self._visited[neuron] = True
