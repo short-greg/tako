@@ -14,9 +14,6 @@ class TestNeuron(object):
     
     def test_that_cannot_self_concatenate(self):
         """
-        Ensure that
-        """
-        """
         neuron = tako__.Neuron()
         strand = neuron >> neuron
         assert type(strand) == tako__.Strand

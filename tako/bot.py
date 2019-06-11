@@ -1,12 +1,12 @@
 # TODO: Consider whether to continue to use
-# visit since there cannot be loops anymore
+# has_visited since there cannot be loops anymore
 
 
 class Bot(object):
-    """
+    '''
     Bots are used in order to traverse the information network and perform
     operations on each of the neurons in the network
-    """
+    '''
     
     def __init__(self):
         self._stop_on = None
@@ -67,7 +67,7 @@ class Bot(object):
 
 
 class Warehouse(Bot):
-    """
+    '''
     
     
     TODO: need to figure out how to deal with the case
@@ -75,13 +75,13 @@ class Warehouse(Bot):
     -- I added in probe_output ... I'm not sure if this is a
     -- good solution though because right now i am not setiting the output
     
-    """
+    '''
     NO_OUTPUT = None, None
     
     def __init__(self):
-        """
+        '''
         
-        """
+        '''
         self._informed = None
         self.reset()
 

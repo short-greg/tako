@@ -332,7 +332,8 @@ class _Arg(object):
 
 arg = _Arg()
 
-# TODO: This is not right right now
+
+
 # TODO: This is not right right now
 class Declaration(Neuron):
     '''    
@@ -637,8 +638,6 @@ class Arm(Neuron):
 Tako modules allow for the creation of classes
 that have arms defined in the class definition
 rather than defining them in the constructor.
-
-
 '''
 
 
@@ -685,9 +684,9 @@ class _TakoType(type):
 
 
 class Tako(object, metaclass=_TakoType):
-    """
+    '''
     
-    """
+    '''
     class _TakoAttr(object):
         '''
         Helper class used by Tako to control the arms
@@ -748,7 +747,6 @@ class Tako(object, metaclass=_TakoType):
     def __new__(cls):
         instance = object.__new__(cls)
         cur = cls
-        # The problem is in here
         instance.__armc__ = Tako._TakoAttr({}, instance, instance)
         prev_arm_controller = instance.__armc__
         while True:

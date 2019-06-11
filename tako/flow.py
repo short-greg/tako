@@ -540,8 +540,8 @@ class Store(Flow):
 
 
 class Delay(Neuron):
-    
-    """Delays the input to be output at a later timestep
+    '''
+    Delays the input to be output at a later timestep
     
     Parameters
     ----------
@@ -551,7 +551,7 @@ class Delay(Neuron):
     ----------
     x
     :example 
-    """
+    '''
     def __init__(self, count=1, default=None):
         '''
         :param int count: The amount to delay by
@@ -600,90 +600,3 @@ class Delay(Neuron):
         return Delay(
             self.count, self.default
         )
-
-
-# class Adapter(Neuron):
-    """
-    Need to think a little more about this... and the how to handle
-    the bot.. In flow nerves should a new bot be created??
-    I'm thinking bots should be managed by each of them
-    
-    In this will want to have different bots i think
-    I think it's okay actually
-    diverge(
-      my.x,
-      my.x,
-      my.y,
-      my.y
-    )
-    
-    flow.Adapter(
-      -- out must be in in
-      in_=[my.x, my.y, my.z], <- these must all be Arms/strands
-      out=[my.z] or my.z <- 
-
-      out_=[my.x, my.z], in_=[my.x, my.y, my.z]
-    )
-    
-    .. 
-    
-    <- have to check if two references are the same.....
-    <- storing the final output? <- this might make sense
-    
-
-    -- Not sure how to handle it for adapter yet
-    
-    bot.inform_extra <- can handle it in here <- inform what the bot is...
-
-
-    x >> y >> BotStore(use_incoming=True)
-    In_() >> z >> Onto() >> 
-    In_() >> z >> BotStore()
-    
-    
-    
-    Problems..How to deal with updating
-    """
-    """
-    def __init__(self, to_inform, to_probe):
-        self._to_inform = to_neuron(to_inform)
-        self._to_probe = to_neuron(to_probe)
-        
-        if type(to_inform) == 'list':
-            self.__exec__ = self._exec_list
-        else:
-            self.__exec__ = self._exec_value
-    
-    def _inform(self):
-        raise NotImplementedError('Inform method must be overwritten on construction.')
-    
-    def _probe(self):
-        raise NotImplementedError('Probe method must be overwritten on construction.')
-    
-    def _exec_value(self, x, bot):
-        self._to_inform(x)
-    
-    def _exec_list(self, x, bot):
-        # x = In_() >> merge(my.z)
-        # z = In_() >> Add(2)
-        
-        # call inform on each of the strands
-        # however.. do not want to execute any of them twice
-        # need to think about how to handle this
-        
-        # nerve ref <- can store the output in the bot??
-        
-        # diverge(my.x, my.x)
-        
-        my_hash = hash(self)
-        for xi in x:
-            if bot.informed_extra(my_hash, 'output'):
-                return bot.probe_extra(my_hash, 'output')
-            bot.inform_extra(hash(self), 'output', x)
-        
-        for to_inform, item in zip(self._to_inform, x):
-            to_inform(item)
-    
-    def __exec__(self, x):
-        raise NotImplementedError
-    """
