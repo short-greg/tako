@@ -470,7 +470,7 @@ def to_neuron(x):
 
 '''
 Strand and Arm are the core classes used to control flow. 
-Arm encapsulates Strand into a flow
+Arm encloses Strand into a flow
 so that Arm can then be connected to other neurons
 '''
 
@@ -545,7 +545,7 @@ class Strand(object):
         lhs.connect(self.lhs)
         self.lhs = lhs
 
-    def encapsulate(self, left_nil=False):
+    def enclose(self, left_nil=False):
         '''
         Enclose the strand with an _In neuron
         on the front and an _Out neuron on the end.
@@ -615,7 +615,7 @@ class Arm(Neuron):
     """
     def __init__(self, strand):
         super().__init__()
-        self.strand = strand.encapsulate()
+        self.strand = strand.enclose()
 
     def visit(self, bot):
         if super().visit(bot):
@@ -795,7 +795,7 @@ if __name__ == '__main__':
     # HOw to deal with this abomination??? need to check that self
     strand = neuron>>neuron
     
-    strand = (Neuron() >> Neuron() >> Neuron()).encapsulate()
+    strand = (Neuron() >> Neuron() >> Neuron()).enclose()
     
     class T(object):
         x = 1

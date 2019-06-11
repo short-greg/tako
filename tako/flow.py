@@ -3,7 +3,8 @@ from tako import ref
 
 
 def to_strand(neuron):
-    return Strand([neuron]).encapsulate()
+    return Strand([neuron]).enclose()
+
 
 class Flow(Neuron):
     '''
@@ -197,7 +198,7 @@ class Repeat(Flow):
         def __call__(self, x, bot=None):
             if self._cur_val is None:
                 self._cur_val = x
-            return lam(self._cur_val)
+            return self._lam(self._cur_val)
         
         def spawn(self):
             return Update(self._lam, self._init_val)
@@ -268,17 +269,23 @@ class Switch(Flow):
     which decides the neuron to send input[1]
     through
 
-    @example in_ >> Switch(
-      router,
-      {p1, p2, p3}
+    @example 
+    in_ >> Switch(
+        router,
+        {
+            0: p1, 
+            1: p2, 
+            2: p3
+        },
+        default=p4
     )
     '''
-    def __init__(self, router, *args, **kwargs):
+    def __init__(self, router, paths, default=None):
         super().__init__()
-        self._router = to_strand(router)
-        self._strands = [to_strand(module) for module in args]
-        default = kwargs.get('default')
+        self._strands = {k: to_strand(neuron) for k, neuron in paths.items()}
+        router = to_strand(router)
         self._default = to_strand(default) if default is not None else None
+        self._router = to_strand(router)
 
     def bot_down(self, bot):
         self._router.bot_forward(bot)
@@ -287,7 +294,7 @@ class Switch(Flow):
 
     def __call__(self, x, bot=None):
         path = self._router(x[0])
-        if 0 <= path <= len(self._strands):
+        if path in self._strands:
             return path, self._strands[path](x[1], bot)
         elif self._default is not None:
             return path, self._default(x[1], bot)
