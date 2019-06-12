@@ -100,7 +100,7 @@ class RefBase(tako.Neuron):
             prev_val = val
         return val
   
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
         Evaluates the reference and
         returns it
@@ -170,9 +170,9 @@ class EmissionRef(RefBase):
     Emission Ref allows one to access members of the
     emission that was passed in and perform operations such as indexing
     '''
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         self._base_val = x
-        return super().__call__(x, bot)
+        return super().__call__(x, wh)
 
     def spawn(self):
         return EmissionRef()
@@ -256,9 +256,9 @@ class NeuronRef(tako.Neuron, Owned, Child):
     def ref_key(self, x=None):
         return self._ref(x).key
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         neuron = self.get_ref(x)
-        return neuron(x, bot)
+        return neuron(x, wh)
     
     def set_super(self, super_):
         if super().set_super(super_):
@@ -328,7 +328,7 @@ class InCall(tako.Neuron, Owned, Child):
         else:
             return arg
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         """
         @param input[0] - function to call
         @param input[1] - input
@@ -377,12 +377,12 @@ class Call(InCall):
         super().__init__(*args, **kwargs)
         self._f = f
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         """
         @param input[0] - function to call
         @param input[1] - input
         """
-        return super().__call__((self._f, x), bot)
+        return super().__call__((self._f, x), wh)
     
     def spawn(self):
         return Call(self._f, *self._args, **self._kwargs)

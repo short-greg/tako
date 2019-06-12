@@ -36,23 +36,22 @@ class Diverge(Flow):
     This will send 1, 2, and 3 through 
     p1, p2, p3 respectively.
     '''
-    def __init__(self, n=None, *args):
+    def __init__(self, strands, n=None):
         """
-        --- @constructor
-        -- @param    streams - Each of the processing 
-        -- modules to process the emissions - {nn.Module}
-        --  - Nerve | Strand
-        -- @param streams.n - number of modules 
-        -- (if not defined will be table.maxn of streams)
+        @constructor
+        @param    streams - Each of the processing 
+        modules to process the emissions - {nn.Module}
+         - Nerve | Strand
+        @param n - number of modules 
+         (if not defined will be table.maxn of streams)
         """
         super().__init__()
-        streams = args
         self._strands = []
-        num_streams = len(streams)
-        self._n = n or num_streams
+        num_strands = len(strands)
+        self._n = n or num_strands
         for i in range(self._n):
-            if i < num_streams:
-                self._strands.append(to_neuron(streams[i]))
+            if i < num_strands:
+                self._strands.append(to_neuron(strands[i]))
             else:
                 self._strands.append(to_neuron(None))
 
@@ -60,7 +59,7 @@ class Diverge(Flow):
         for strand in self._strands:
             strand.bot_forward(bot)
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
         :param x: must be a sequence with the same length
         as the number of strands
@@ -68,14 +67,14 @@ class Diverge(Flow):
         result = []
         for i in range(self._n):
             result.append(
-                self._strands[i](x[i], bot)
+                self._strands[i](x[i], wh)
             )
         return result
 
     def spawn(self):
         return Diverge(
             self._n, 
-            *[strand.spawn() for strand in self._strands]
+            [strand.spawn() for strand in self._strands]
         )
 
 
@@ -104,7 +103,6 @@ class Gate(Flow):
         :param pass_on: The value the output of cond
         should equal in order for the condition to pass
         '''
-        
         super().__init__()
         self._cond = to_strand(cond)
         self._neuron = to_strand(neuron)
@@ -114,17 +112,15 @@ class Gate(Flow):
         self._cond.bot_forward(bot)
         self._neuron.bot_forward(bot)
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
-        :param x: sequence with two items
-        :param bot:
+        :param x: sequential with two items
         :return passed, result: Whether the condition passed 
         and what the result is
         '''
         passed = self._cond(x[0]) == self._pass_on
-        
         if passed:
-            result = self._neuron(x[1], bot)
+            result = self._neuron(x[1], wh)
         else:
             result = None
         
@@ -151,18 +147,17 @@ class Multi(Flow):
     @example strand = in_ >> Emit(1) >> Multi(p1, p2, p3)
     Here the output will be [p1(1), p2(1), p3(1)]
     '''
-    def __init__(self, n=None, *args):
+    def __init__(self, strands=None, n=None):
         super().__init__()
-        streams = args
-        num_streams = len(streams) if args is not None else 0
-        self._n = n or num_streams
-        assert num_streams <= self._n, (
+        num_strands = len(strands) if strands is not None else 0
+        self._n = n or num_strands
+        assert num_strands <= self._n, (
             'The number of streams must match or be less than "n".'
         )
         self._strands = []
         for i in range(self._n):
-            if i < num_streams:
-                self._strands.append(to_strand(args[i]))
+            if i < num_strands:
+                self._strands.append(to_strand(strands[i]))
             else:
                 self._strands.append(to_strand(None))
 
@@ -170,16 +165,16 @@ class Multi(Flow):
         for n in self._strands:
             n.bot_forward(bot)
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         result = []
         for cur_strand in self._strands:
-            result.append(cur_strand(x, bot))
+            result.append(cur_strand(x, wh))
         return result
 
     def spawn(self):
         return Multi(
-            self._n, 
-            *[strand.spawn() for strand in self._strands]
+            [strand.spawn() for strand in self._strands],
+            self._n
         )
 
 
@@ -217,11 +212,6 @@ class Repeat(Flow):
     
     strand(0) -> [1, 2, 3]
     '''
-
-    # TODO: How to send the bot forward through the network???
-    # Is this straightforward? Do I need to store the output
-    # at each time step? <- I think I don't...
-    # I just need to figure out how to use the delay functionality
     
     def __init__(self, neuron, break_on=False, output_all=False):
         '''
@@ -236,7 +226,7 @@ class Repeat(Flow):
         self._break_on = break_on
         self._output_all = output_all
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
         Repeatedly call self._stand until finished
         '''
@@ -244,7 +234,7 @@ class Repeat(Flow):
         result = None
         
         while True:
-            cur_result = self._strand(x, bot)
+            cur_result = self._strand(x, wh)
             if self._output_all:
                 all_results.append(result)
                 result = all_results
@@ -292,12 +282,12 @@ class Switch(Flow):
         for n in self._strands:
             n.bot_forward(bot)
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         path = self._router(x[0])
         if path in self._strands:
-            return path, self._strands[path](x[1], bot)
+            return path, self._strands[path](x[1], wh)
         elif self._default is not None:
-            return path, self._default(x[1], bot)
+            return path, self._default(x[1], wh)
         else:
             return path, x[1]
 
@@ -320,41 +310,45 @@ class Cases(Flow):
     the Case
 
     @example oc.Cases(
-        Gate(cond1, proc1),
-        Gate{cond2, proc2),
-        else_=proc3
+        [
+            Gate(cond1, proc1),
+            Gate{cond2, proc2),
+        ],
+        default=proc3
     )
     '''
-    NO_OUTPUT = None, None
+    NO_PATH = None
+    DEFAULT_PATH = -1
+    NO_OUTPUT = None
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, cases, default=None, break_on=True):
         super().__init__()
-        self._strands = [to_strand(module) for module in args]
-        self._else = kwargs.get('else_')
-        if self._else is not None:
-            self._else = to_neuron(self._else)
-        self._break_on = kwargs.get('break_on', True)
+        self._strands = [to_strand(neuron) for neuron in cases]
+        self._default = default
+        if self._default is not None:
+            self._default = to_neuron(self._default)
+        self._break_on = break_on
 
     def bot_down(self, bot):
-        for n in self._modules:
-            n.bot_forward(bot)
-        self._else.bot_forward(bot)
+        for strand in self._strands:
+            strand.bot_forward(bot)
+        self._default.bot_forward(bot)
     
-    def __call__(self, x, bot=None):
-        output_ = self.NO_OUTPUT
+    def __call__(self, x, wh=None):
         for i, strand in enumerate(self._strands):
-            output_ = strand(x, bot)
+            output_ = strand(x, wh)
             if output_[0] == self._break_on:
                 return i, output_[1]
         
-        if self._else is not None:
-            return 'Else', self._else(x, bot)
-        return output_
+        if self._default is not None:
+            return self.DEFAULT_PATH, self._default(x, wh)
+        return self.NO_PATH, self.NO_OUTPUT
     
     def spawn(self):
         return Cases(
-            *[strand.spawn() for strand in self._strands], 
-            else_=self._else.spawn() if self._else is not None else None
+            cases=[strand.spawn() for strand in self._strands], 
+            default=self._else.spawn() if self._default is not None else None,
+            break_on=self._break_on
         )
 
 
@@ -388,13 +382,13 @@ class Onto(_Merge):
     A merge which prepends the input in front of the merged
     items
     """
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return [
-            x, *[strand(None, bot) for strand in self._to_merge]
+            x, *[strand(None, wh) for strand in self._to_merge]
         ]
 
     def spawn(self):
-        return Onto([strand.spawn() for strand in self._to_merge])
+        return Onto(*[strand.spawn() for strand in self._to_merge])
     
 
 class Under(_Merge):
@@ -402,13 +396,13 @@ class Under(_Merge):
     A merge which appends the input to the back of the merged
     items
     """
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return [
-            *[strand(None, bot) for strand in self._to_merge], x
+            *[strand(None, wh) for strand in self._to_merge], x
         ]
 
     def spawn(self):
-        return Under([strand.spawn() for strand in self._to_merge])
+        return Under(*[strand.spawn() for strand in self._to_merge])
 
 
 class BotInform(Flow):
@@ -441,13 +435,13 @@ class BotInform(Flow):
     def bot_down(self, bot):
         self._strand.bot_forward(bot)
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         key = self.key
         if not self._auto_reset:
-            y, found = bot.probe(key)
+            y, found = wh.probe(key)
             if found:
                 return y
-        y = self._strand(x, bot)
+        y = self._strand(x, wh)
         bot.inform(key, y)
         return y
     
@@ -495,12 +489,12 @@ class BotProbe(Neuron):
             return result + str(my_ref.key)
         return result
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         assert x is None, (
             'x should not be defined when ' +
             'executing bot probe'
         )
-        y, found = bot.probe(self.key)
+        y, found = wh.probe(self.key)
         if not found:
             return self._default
         return y
@@ -532,11 +526,11 @@ class Store(Flow):
     def bot_down(self, bot):
         self._strand.bot_forward(bot)
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
         Call the "internal" strand and store the input
         '''
-        y = self._strand(x, bot)
+        y = self._strand(x, wh)
         self.output = y
         return y
 
@@ -598,7 +592,7 @@ class Delay(Neuron):
         '''
         self.vals = [self.default] * self.count
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         cur = self.vals.pop(0)
         self.vals.append(x)
         return cur

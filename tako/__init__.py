@@ -47,7 +47,8 @@ class Neuron(object):
         Pass a bot forward through the network
         :param Bot bot: The bot to pass forward
         '''  
-        if self.visit(bot) and self.outgoing is not None:
+        self.visit(bot)
+        if self.outgoing is not None:
             self.outgoing.bot_forward(bot)
     
     def forward(self, x, bot=None):
@@ -87,12 +88,12 @@ class Neuron(object):
         assert self.outgoing is None, 'There can only be one incoming flow for a flow'
         self.outgoing = other
 
-    def __call__(self, x, bot):
+    def __call__(self, x, wh):
         '''
         Execute the operation specified by the neuron (In the base neuron there is no
         operation).
         :param x: The input into the neuron (can be anything)
-        :param Bot bot: a bot to pass through the network (can be used by
+        :param warehouse wh: a warehouse to pass through the network (can be used by
         neurons that store info or probe the bot for info).
         '''
         raise NotImplementedError
@@ -132,7 +133,7 @@ class _In(Neuron):
     def __rshift__(self, other):
         return Strand([self, other])
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return x
 
 
@@ -160,7 +161,7 @@ class _Out(Neuron):
     def __rshift__(self, other):
         raise AttributeError('An "Out_" flow cannot output to another flow. ')
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return x
 
 
@@ -188,7 +189,7 @@ class _Nil(_In):
     def __rshift__(self, other):
         return Strand([self, other])
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         assert x is None, 'The input to a Nil flow must be None'
         return x
 
@@ -233,7 +234,6 @@ class Sub(Neuron):
     Index the emission that has been passed in
     
     '''
-    
     def __init__(self, index): 
         '''
         Neuron to call __getitem__ on the input that is passed in
@@ -242,7 +242,7 @@ class Sub(Neuron):
         super().__init__()
         self.index = index
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return x[self.index]
     
     def spawn(self):
@@ -264,7 +264,7 @@ class OpNeuron(Neuron):
     def spawn(self):
         return OpNeuron(self._op)
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return self._op(x)
 
 
@@ -276,7 +276,7 @@ class UnpackOpNeuron(OpNeuron):
     def spawn(self):
         return UnpackOpNeuron(self._op)
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return self._op(*x)
 
 
@@ -287,7 +287,7 @@ class Noop(Neuron):
     def spawn(self):
         return Noop()
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return x
 
 # TODO: Refactor.. duplicating Stem
@@ -374,15 +374,15 @@ class Declaration(Neuron):
         self.incoming = None
         self.outgoing = None
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         if not self._dynamic and not self.defined:
             neuron = self.define(x)
             self._replace(neuron)
-            return neuron(x, bot)
+            return neuron(x, wh)
         elif not self._dynamic:
-            return self.defined(x, bot)
+            return self.defined(x, wh)
         else:
-            return self.define(x)(x, bot)
+            return self.define(x)(x, wh)
 
 
 def decl(cls, *args, **kwargs):
@@ -436,7 +436,7 @@ class Emit(Neuron):
             )
         return super().inform(x, bot)
 
-    def __call__(self, x=None, bot=None):
+    def __call__(self, x=None, wh=None):
         assert x is None, 'Emit Neurons must not take an input.'
         return self._to_emit
 
@@ -585,8 +585,8 @@ class Strand(object):
         ops.append(cur.spawn())
         return Strand(ops)
 
-    def __call__(self, x=None, bot=None):
-        return self.lhs.forward(x, bot)
+    def __call__(self, x=None, wh=None):
+        return self.lhs.forward(x, wh)
     
     def __rshift__(self, other):
         '''
@@ -623,7 +623,7 @@ class Arm(Neuron):
             return True
         return False
 
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         return self.strand(x)
 
     def spawn(self):
@@ -826,3 +826,41 @@ if __name__ == '__main__':
     # print(X().strand)
     # print(type(strand.rhs))
     """
+
+
+class Warehouse(object):
+    '''
+    This type of bot is more passive, no?
+    
+    TODO: need to figure out how to deal with the case
+    that a particular neuron is called by multiple 
+    -- I added in probe_output ... I'm not sure if this is a
+    -- good solution though because right now i am not setiting the output
+    
+    '''
+    NO_OUTPUT = None, None
+    
+    def __init__(self):
+        '''
+        
+        '''
+        self._informed = None
+        self.reset()
+
+    def inform(self, key, val):
+        self._informed[key] = val
+    
+    def probe(self, key, default=None):
+        if key in self._informed:
+            return self._informed[key], True
+        return default, False
+        
+    def reset(self):
+        self._informed = {}
+    
+    def uninform(self, key):
+        self._informed.pop(key)
+
+    def spawn(self):
+        return Warehouse()
+

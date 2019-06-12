@@ -66,43 +66,6 @@ class Bot(object):
         NotImplementedError
 
 
-class Warehouse(Bot):
-    '''
-    
-    
-    TODO: need to figure out how to deal with the case
-    that a particular neuron is called by multiple 
-    -- I added in probe_output ... I'm not sure if this is a
-    -- good solution though because right now i am not setiting the output
-    
-    '''
-    NO_OUTPUT = None, None
-    
-    def __init__(self):
-        '''
-        
-        '''
-        self._informed = None
-        self.reset()
-
-    def inform(self, key, val):
-        self._informed[key] = val
-    
-    def probe(self, key, default=None):
-        if key in self._informed:
-            return self._informed[key], True
-        return default, False
-        
-    def reset(self):
-        self._informed = {}
-    
-    def uninform(self, key):
-        self._informed.pop(key)
-
-    def spawn(self):
-        return Warehouse()
-
-
 class Call(Bot):
     '''
     Call is for creating a bot that
@@ -131,13 +94,13 @@ class Call(Bot):
     def base_cond(self, neuron=None):
         return hasattr(neuron, self._func_name)
 
-    def base_process(self, neuron, results):
-        self._results[neuron] = results
+    def base_process(self, results):
+        return results
   
     def base_report(self):
         return self._results
     
-    def __init__(self, func_name, args, kwargs, cond=None, process=None, report=None):
+    def __init__(self, func_name, args=None, kwargs=None, cond=None, process=None, report=None):
         super().__init__()
         self._func_name = func_name
         self.cond = cond or self.base_cond
@@ -153,7 +116,9 @@ class Call(Bot):
         return False
     
     def _visit(self, neuron):
-        object.__getattribute__(neuron, self._func_name)(*self._args)
+        result = object.__getattribute__(neuron, self._func_name)(*self._args, **self._kwargs)
+        self._results[neuron] = self.process(result)
+        print(self._results[neuron])
     
     def spawn(self):
         return Call(

@@ -280,7 +280,7 @@ class ToIter(tako.Neuron):
     def __init__(self):
         super().__init__()
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
         :param Accessor x: the accessor to iterate on
         :param bot: StoreBot
@@ -300,7 +300,7 @@ class Iterate(tako.Neuron):
     
     AT_END = False, None
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x, wh=None):
         '''
         :param Iter x: the iterator to iterate on
         :param bot: StoreBot

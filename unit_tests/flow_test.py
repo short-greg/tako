@@ -1,4 +1,4 @@
-from tako import __init__ as tako
+import tako
 from tako import flow
 import pytest
 from tako import bot
@@ -30,16 +30,18 @@ class TestDelay(object):
 class TestDiverge(object):
     def test_flow_initialization(self):
         diverge = flow.Diverge(
-            None, 
-            tako.Noop(),
-            flow.Delay(1)
+            [
+                tako.Noop(),
+                flow.Delay(1)
+            ]
         )
     
     def test_flow_with_two_streams(self):
         diverge = flow.Diverge(
-            None, 
-            tako.Noop(),
-            flow.Delay(1, default=0)
+            [ 
+                tako.Noop(),
+                flow.Delay(1, default=0)
+            ],
         )
         assert diverge([1, 1]) == (
             [1, 0]
@@ -50,6 +52,7 @@ class TestDiverge(object):
     
     def test_flow_with_two_streams_using_n(self):
         diverge = flow.Diverge(
+            [],
             2
         )
         assert diverge([3, 1]) == (
@@ -73,7 +76,7 @@ class TestGate(object):
             pass_on=False
         )
         assert gate([0, 1]) == (
-            [True, 3]
+            (True, 3)
         )
     
     def test_gate_with_fail(self):
@@ -83,7 +86,7 @@ class TestGate(object):
             pass_on=False
         )
         assert gate([1, 1]) == (
-            [False, None]
+            (False, None)
         )
 
 
@@ -91,16 +94,18 @@ class TestMulti(object):
     
     def test_multi_initialization(self):
         flow.Multi(
-            None,
-            lambda x: x + 1,
-            lambda x: x + 2
+            [      
+                lambda x: x + 1,
+                lambda x: x + 2
+            ]
         )
     
     def test_multi_with_two(self):
         multi = flow.Multi(
-            None,
-            lambda x: x + 1,
-            lambda x: x + 2
+            [     
+                lambda x: x + 1,
+                lambda x: x + 2
+            ]
         )
         assert multi(1) == (
             [2, 3]
@@ -108,8 +113,10 @@ class TestMulti(object):
     
     def test_multi_with_two_n(self):
         multi = flow.Multi(
-            2,
-            lambda x: x + 1
+            [
+                lambda x: x + 1
+            ],
+            2
         )
         assert multi(1) == (
             [2, 1]
@@ -118,10 +125,12 @@ class TestMulti(object):
     def test_multi_with_incompatible_n(self):
         with pytest.raises(AssertionError):
             flow.Multi(
+                [
+                    lambda x: x + 1,
+                    lambda x: x + 1,
+                    lambda x: x + 1
+                ],
                 1,
-                lambda x: x + 1,
-                lambda x: x + 1,
-                lambda x: x + 1
             )
 
 
@@ -130,16 +139,20 @@ class TestSwitch(object):
     def test_switch_initialization(self):
         flow.Switch(
             lambda x: x,
-            lambda x: x + 1,
-            lambda x: x + 2,
+            {
+                0: lambda x: x + 1,
+                1: lambda x: x + 2,
+            },
             default=lambda x: 0
         )
     
     def test_switch_to_first(self):
         switch = flow.Switch(
             lambda x: x,
-            lambda x: x + 1,
-            lambda x: x + 2,
+            {
+                0: lambda x: x + 1,
+                1: lambda x: x + 2,       
+            },
             default=lambda x: 0
         )
         assert switch((0, 2)) == (
@@ -149,8 +162,10 @@ class TestSwitch(object):
     def test_switch_to_default(self):
         switch = flow.Switch(
             lambda x: x,
-            lambda x: x + 1,
-            lambda x: x + 2,
+            {
+                0: lambda x: x + 1,
+                1: lambda x: x + 2,
+            },
             default=lambda x: 0
         )
         # default path
@@ -163,14 +178,18 @@ class TestCases(object):
     
     def test_switch_initialization(self):
         flow.Cases(
-            flow.Gate(cond=lambda x: True, neuron=lambda x: x - 1),
-            else_=lambda x: 0
+            [
+                flow.Gate(cond=lambda x: True, neuron=lambda x: x - 1)
+            ],
+            default=lambda x: 0
         )
 
     def test_switch_test_first(self):
         cases = flow.Cases(
-            flow.Gate(cond=lambda x: True, neuron=lambda x: x - 1),
-            else_=lambda x: 0
+            [
+                flow.Gate(cond=lambda x: True, neuron=lambda x: x - 1),
+            ],
+            default=lambda x: 0
         )
         assert cases((1, 4)) == (
             ((0, 3))
@@ -178,11 +197,13 @@ class TestCases(object):
     
     def test_switch_test_else(self):
         cases = flow.Cases(
-            flow.Gate(cond=lambda x: False, neuron=lambda x: x - 1),
-            else_=lambda x: 0
+            [
+                flow.Gate(cond=lambda x: False, neuron=lambda x: x - 1),
+            ],
+            default=lambda x: 0
         )
         assert cases((1, 4)) == (
-            (('Else', 0))
+            ((flow.Cases.DEFAULT_PATH, 0))
         )
 
 
@@ -273,7 +294,7 @@ class TestBotInform(object):
 
     def test_store_lambda_output(self):
         lam = flow.BotInform(lambda x: x + 1)
-        ware = bot.Warehouse()
+        ware = tako.Warehouse()
         lam(2, ware)
         assert ware.probe(lam.key) == (3, True), (
             'Warehouse have stored the value 3 ' + 
@@ -282,7 +303,7 @@ class TestBotInform(object):
 
     def test_store_lambda_no_use_neuron_key(self):
         lam = flow.BotInform(lambda x: x + 1, name='XX', use_neuron_key=False)
-        ware = bot.Warehouse()
+        ware = tako.Warehouse()
         lam(2, ware)
         
         assert ware.probe(lam.key) == (3, True), (
@@ -300,7 +321,7 @@ class TestBotProbe(object):
     def test_probe_lambda_output(self):
         lam = flow.BotInform(lambda x: x + 1)
         probe = flow.BotProbe(lam)
-        ware = bot.Warehouse()
+        ware = tako.Warehouse()
         lam(2, ware)
         assert probe(None, ware) == 3, (
             'Warehouse have stored the value 3 ' + 
@@ -310,7 +331,7 @@ class TestBotProbe(object):
     def test_probe_lambda_output_with_ref(self):
         lam = flow.BotInform(lambda x: x + 1)
         probe = flow.BotProbe(ref.ref(lam))
-        ware = bot.Warehouse()
+        ware = tako.Warehouse()
         lam(2, ware)
         assert probe(None, ware) == 3, (
             'Warehouse have stored the value 3 ' + 
@@ -320,7 +341,7 @@ class TestBotProbe(object):
     def test_probe_lambda_output_with_name(self):
         lam = flow.BotInform(lambda x: x + 1, name='T', use_neuron_key=False)
         probe = flow.BotProbe(name='T')
-        ware = bot.Warehouse()
+        ware = tako.Warehouse()
         lam(2, ware)
         assert probe(None, ware) == 3, (
             'Warehouse have stored the value 3 ' + 
