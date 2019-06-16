@@ -73,7 +73,8 @@ class TestCall(object):
         results = call_bot.report()
         assert results[neuron1] == -4, (
             'Neuron1 should be 1 - 5 = -4'
-        )
+            )
         assert results[neuron2] == 0, (
             'Neuron1 should be 5 - 5 = 0'
-        )
+            )
+

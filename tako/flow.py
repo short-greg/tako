@@ -11,11 +11,9 @@ class Flow(Neuron):
     Base class for flow neurons that contain
     other neurons
     '''
-    def _visit(self, bot):
-        if super().visit(bot):
-            self.bot_down(bot)
-            return True
-        return False
+    def visit(self, bot):
+        super().visit(bot)
+        self.bot_down(bot)
     
     def bot_down(self, bot):
         raise NotImplementedError
@@ -49,6 +47,10 @@ class Diverge(Flow):
         self._strands = []
         num_strands = len(strands)
         self._n = n or num_strands
+        assert num_strands <= self._n, (
+            'Argument n must be greater to or ' +
+            'equal than the len(stands).'
+            )
         for i in range(self._n):
             if i < num_strands:
                 self._strands.append(to_neuron(strands[i]))
@@ -73,8 +75,8 @@ class Diverge(Flow):
 
     def spawn(self):
         return Diverge(
-            self._n, 
-            [strand.spawn() for strand in self._strands]
+            [strand.spawn() for strand in self._strands],
+            self._n
         )
 
 
@@ -275,12 +277,13 @@ class Switch(Flow):
         self._strands = {k: to_strand(neuron) for k, neuron in paths.items()}
         router = to_strand(router)
         self._default = to_strand(default) if default is not None else None
-        self._router = to_strand(router)
+        self._router = router
 
     def bot_down(self, bot):
         self._router.bot_forward(bot)
-        for n in self._strands:
-            n.bot_forward(bot)
+        for key, neu in self._strands.items():
+            neu.bot_forward(bot)
+        self._default.bot_forward(bot)
 
     def __call__(self, x, wh=None):
         path = self._router(x[0])
@@ -294,9 +297,9 @@ class Switch(Flow):
     def spawn(self):
         return Switch(
             self._router.spawn(),
-            *[strand.spawn() for strand in self._strands],
+            {k: strand.spawn() for k, strand in self._strands.items()},
             default=self._default.spawn()
-        )
+            )
 
 
 class Cases(Flow):
@@ -347,7 +350,7 @@ class Cases(Flow):
     def spawn(self):
         return Cases(
             cases=[strand.spawn() for strand in self._strands], 
-            default=self._else.spawn() if self._default is not None else None,
+            default=self._default.spawn() if self._default is not None else None,
             break_on=self._break_on
         )
 
@@ -370,6 +373,7 @@ class _Merge(Flow):
     strand(1) -> [2, 'bot']
     '''
     def __init__(self, *args):
+        super().__init__()
         self._to_merge = [to_strand(arg) for arg in args]
     
     def bot_down(self, bot):
@@ -419,6 +423,7 @@ class BotInform(Flow):
         :param bool use_neuron_key: Whether to use the neuron hash key when informing - boolean
         :param bool auto_reset: whether to update the output automatically when a new input is passed in -
         '''
+        super().__init__()
         self._base = neuronable
         self._strand = to_strand(self._base)
         self._auto_reset = auto_reset
@@ -442,7 +447,7 @@ class BotInform(Flow):
             if found:
                 return y
         y = self._strand(x, wh)
-        bot.inform(key, y)
+        wh.inform(key, y)
         return y
     
     def spawn(self):
@@ -468,6 +473,7 @@ class BotProbe(Neuron):
         :param string name: The name of the neuron to refer to 
         :param default: The default value to output (if the probe fails)
         '''
+        super().__init__()
         self._ref_base = my_ref
         
         if my_ref is not None:
@@ -514,6 +520,7 @@ class Store(Flow):
         :param neuronable: item that can be changed to a neuron
         :param default: the default value to store
         '''
+        super().__init__()
         neuron = to_neuron(neuronable)
         self._strand = to_strand(neuron)
         self.output = None
@@ -536,7 +543,7 @@ class Store(Flow):
 
     def spawn(self):
         return Store(
-            self._strand.spawn(), self._name, self._default
+            self._strand.spawn(), self._default
         )
 
 

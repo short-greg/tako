@@ -55,7 +55,7 @@ class Bot(object):
         '''
         Visit the neuron if it has not been visited yet
         '''
-        if not self.has_visited(neuron):
+        if self.to_visit(neuron):
             self._visit(neuron)
             self._visited[neuron] = True
 
@@ -123,7 +123,7 @@ class Call(Bot):
     def spawn(self):
         return Call(
             self._func_name, self._args, self.cond, self.process, self.report
-        )
+            )
 
 
 class _CallArgs(object):

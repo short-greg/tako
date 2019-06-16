@@ -4,6 +4,9 @@ import tako
 
 # @pytest.mark.incremental
 class TestNeuron(object):
+    '''
+    
+    '''
     def test_neuron_initialization(self):
         neuron = tako.Neuron()
     
