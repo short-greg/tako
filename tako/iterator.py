@@ -69,7 +69,7 @@ class Accessor(object):
         return AccessorNeuron(self)
 
     def _spawn_data(self):
-        if isinstance(self._data, MetaAccessor):
+        if isinstance(self._data, MetaAccessor):  
             return self._data.spawn()
         return self._data
     
@@ -91,7 +91,7 @@ class MetaAccessor(object):
         return self._data
     
     def spawn(self):
-        return MetaAccessor(self._spawn_data())
+        raise NotImplementedError
     
     def __neuron__(self):
         return MetaAccessorNeuron()
@@ -233,6 +233,9 @@ class Reverse(MetaAccessor):
             self._data[len(self) - idx - 1] = val
 
         raise IndexError
+
+    def spawn(self):
+        return Reverse(self._spawn_data())
 
     def __len__(self):
         return len(self._data)
