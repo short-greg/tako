@@ -47,6 +47,7 @@ class Attr(object):
         self._key = key
         
     def get(self, obj):
+        print(obj, self._key)
         return object.__getattribute__(obj, self._key)
 
 
@@ -74,7 +75,7 @@ class RefBase(tako.Neuron):
     (i.e. references to items other than arms)
     '''
     
-    def __init__(self, path):
+    def __init__(self, path=None):
         """
         --- @constructor
         -- @param path - path to access the value 
@@ -92,10 +93,12 @@ class RefBase(tako.Neuron):
         :param x: The input into the neuron
         '''
         prev_val = val
+        print('Val: ', val)
         for p in path:
             if type(p) == InCall:
                 val = p([prev_val, x])
             else:
+                print('Prev Val: ', prev_val)
                 val = p.get(prev_val)
             prev_val = val
         return val
@@ -123,11 +126,12 @@ class Child(object):
     objects that contain such references
     '''
     def __init__(self, child_of=None):
+        self._super_ = None
         self.set_super(child_of)
     
     def set_super(self, super_):
-        if self._super is None:
-            self._super = super_
+        if self._super_ is None:
+            self._super_ = super_
             return True
         return False
 
@@ -139,6 +143,7 @@ class Owned(object):
     objects that contain such references
     '''
     def __init__(self, owner=None):
+        self._owner = None
         self.set_owner(owner)
     
     def set_owner(self, owner):
@@ -175,7 +180,7 @@ class EmissionRef(RefBase):
         return super().__call__(x, wh)
 
     def spawn(self):
-        return EmissionRef()
+        return EmissionRef(self._path)
 
 
 class MyRef(RefBase, Owned):
@@ -185,8 +190,9 @@ class MyRef(RefBase, Owned):
     @output whatever the evaluation of the reference
     spits out
     '''
-    def __init__(self, path):
+    def __init__(self, path=None):
         super().__init__(path)
+        Owned.__init__(self)
     
     def set_owner(self, owner):
         if Owned.set_owner(self, owner):
@@ -205,12 +211,15 @@ class SuperRef(RefBase):
     '''
     
     '''
-    def __init__(self, path):
+    def __init__(self, path=None):
         super().__init__(path)
+        Child.__init__(self)
 
     def set_super(self, super_):
-        if Owned.set_super(self, super_):
+        print('Setting super ', super_, self._super_)
+        if Child.set_super(self, super_):
             self._base_val = super_
+            print('Set base_val ', super_)
             for p in self._path:
                 if isinstance(p, InCall):
                     p.set_super(super_)
@@ -229,7 +238,7 @@ class ValRef(RefBase):
     ref.ref(datetime).datetime(2019, 10, 1)
     '''
 
-    def __init__(self, val, path):
+    def __init__(self, val, path=None):
         '''
         @param val - the val to access in the reference
         @param path - path to access the value 
@@ -237,14 +246,15 @@ class ValRef(RefBase):
         @param args - Args to pass if a function  {} or nil
         (if args is nil will not call)
         '''
+        print('Setting val ', val, path)
         super().__init__(path)
         self._base_val = val
     
     def update_val(self, val):
-        self._val = val
+        self._base_val = val
     
     def spawn(self):
-        return ValRef(self._val, self._path)
+        return ValRef(self._base_val, self._path)
 
 
 class NeuronRef(tako.Neuron, Owned, Child):
@@ -306,10 +316,10 @@ class InCall(tako.Neuron, Owned, Child):
     '''
     def __init__(self, *args, **kwargs):
         super().__init__()
-        Owned.__init__(self)
-        Child.__init__(self)
         self._args = [self._prepare_arg(arg) for arg in args]
         self._kwargs = {k: self._prepare_arg(arg) for k, arg in kwargs}
+        Owned.__init__(self)
+        Child.__init__(self)
         # not sure if i need this????
         # it appears i do not need this
         # self._instance_method = instance_method
@@ -589,15 +599,6 @@ class _Refmeta(object):
         return to_neuron(self._refmeta_type(*self._args))
 
 
-class _Valrefmeta(_Refmeta):
-    '''
-    the Meta for 'val' refs in order to create
-    a new val
-    '''
-    
-    def __init__(self, val):
-        super().__init__(ValPlaceholder, [val])
-
 # create a reference to the
 # object which possesses the neuron
 my = _Refmeta(MyPlaceholder)
@@ -613,7 +614,7 @@ super_ = _Refmeta(SuperPlaceholder)
 # because the object that is
 # being referenced is unknown
 def ref(val):
-    return _Valrefmeta(val)
+    return ValPlaceholder(val)
 
 
 def is_refmeta(val):

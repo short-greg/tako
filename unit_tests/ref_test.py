@@ -25,6 +25,14 @@ class TestEmissionRef(object):
         
         strand = tako.in_ >> ref.emission.f
         assert strand(T) == 2
+
+    def test_spawn_with_emission_ref_execution_with_getattr(self):
+        class T(object):
+            f = 2
+            g = 3
+        
+        strand = tako.in_ >> ref.emission.f
+        assert strand.spawn()(T) == 2
     
     def test_emission_ref_execution_with_neuron(self):
         def v(x):
@@ -117,6 +125,17 @@ class TestValRef(object):
         
         strand = tako.nil_ >> r
         assert strand() == 1
+
+    def test_my_ref_spawn_with_execution_with_call(self):
+        class V:
+            def f(self):  
+                return 1
+        
+        t = V()
+        r = to_neuron(ref.ref(t).f())
+        
+        strand = tako.nil_ >> r
+        assert strand.spawn()() == 1
     
     def test_my_ref_execution_with_two_calls(self):
         class X:
@@ -164,3 +183,20 @@ class TestCall(object):
         
         strand = tako.in_ >> r
         assert strand(J) == 'a_a'
+
+    def test_call_spawn_with_execution_with_ref(self):
+        def y(a, b):
+            return a + b
+        
+        class Z:
+            def z(self):
+                return '_a'
+
+        class J:
+            a = 'a'
+        
+        r = ref.Call(y, ref.emission.a, ref.my.z())
+        r.set_owner(Z())
+        
+        strand = tako.in_ >> r
+        assert strand.spawn()(J) == 'a_a'
