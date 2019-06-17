@@ -1,5 +1,5 @@
-from tako import iterator
-import tako
+from octako import iterator
+import octako.core as tako
 
 
 

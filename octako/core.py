@@ -1,4 +1,4 @@
-from tako import bot
+from octako import bot
 
 '''
 Core Neuron Modules
@@ -863,4 +863,3 @@ class Warehouse(object):
 
     def spawn(self):
         return Warehouse()
-

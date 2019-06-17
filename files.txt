@@ -1,0 +1,15 @@
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/reverse.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__init__.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/flow.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/bot.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/iterator.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/ref.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/brev.py
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/reverse.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/__init__.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/flow.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/bot.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/iterator.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/ref.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako/__pycache__/brev.cpython-37.pyc
+/anaconda3/envs/sandbox/lib/python3.7/site-packages/octako-0.1dev-py3.7.egg-info

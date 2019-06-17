@@ -1,5 +1,5 @@
 import pytest
-import tako
+import octako.core as tako
 
 
 # @pytest.mark.incremental
@@ -26,7 +26,7 @@ class TestNeuron(object):
     def test_forward_causes_not_implemented(self):
         neuron = tako.Neuron()
         with pytest.raises(NotImplementedError):
-            neuron(1)
+            neuron(1, None)
     
     def test_spawn(self):
         neuron = tako.Neuron().spawn()
@@ -111,11 +111,11 @@ class TestDeclaration(object):
             'The value should become 2.'
         )
     
-    def test_declaration_that_is_encapsulated(self):
+    def test_declaration_that_is_enclosed(self):
         def op(x):
             return x + 1
 
-        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op)).encapsulate()
+        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op)).enclose()
         result = strand(1)
 
         assert result == 2, (
@@ -126,7 +126,7 @@ class TestDeclaration(object):
         def op(x):
             return x + 1
 
-        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op)).encapsulate()
+        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op)).enclose()
         strand(1)
         result = strand(1)
 
@@ -139,7 +139,7 @@ class TestDeclaration(object):
         def op(x):
             return x + 1
 
-        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op=op)).encapsulate()
+        strand = (tako.in_ >> tako.decl(tako.OpNeuron, op=op)).enclose()
         strand(1)
         result = strand(1)
 
@@ -152,7 +152,7 @@ class TestDeclaration(object):
         def op(x):
             return x + 1
 
-        strand = (tako.in_ >> tako.Declaration(tako.OpNeuron, [op], dynamic=True)).encapsulate()
+        strand = (tako.in_ >> tako.Declaration(tako.OpNeuron, [op], dynamic=True)).enclose()
         strand(1)
         result = strand(1)
 
@@ -212,7 +212,7 @@ class TestEmit(object):
             emit(1)
 
     def test_emit_with_strand(self):
-        strand = (tako.nil_ >> tako.Emit(1)).encapsulate()
+        strand = (tako.nil_ >> tako.Emit(1)).enclose()
         assert strand() == 1, (
             'The output of the strand should be 1.'
         )

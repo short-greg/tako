@@ -1,6 +1,6 @@
-from tako import ref
-from tako import to_neuron
-import tako
+from octako import ref
+from octako import to_neuron
+import octako.core as tako
 
 
 class TestEmissionRef(object):

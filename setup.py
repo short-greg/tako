@@ -4,8 +4,8 @@
 from distutils.core import setup
 
 setup(
-    name='oc-tako',
+    name='octako',
     version='0.1dev',
     author='Greg Short',
-    packages=['tako', 'examples']
+    packages=['octako']
     )

@@ -1,5 +1,5 @@
-from tako import Neuron, to_neuron, Strand, Arm
-from tako import ref
+from octako import Neuron, to_neuron, Strand, Arm
+from octako import ref
 
 
 def to_strand(neuron):
@@ -186,7 +186,7 @@ class Repeat(Flow):
     false.
     
     @example 
-    class Update(tako.Neuron):
+    class Update(octako.Neuron):
         def __init__(self, lam, init_val=None):
             self._init_val = init_val
             self._lam = lam

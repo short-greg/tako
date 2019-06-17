@@ -1,4 +1,4 @@
-import tako
+import octako
 
 '''
 Reverse a particular nerve 
@@ -21,7 +21,7 @@ n = nn.Linear:d(2, 4)
 nrev =  n.rev() -> creates a DeclarationReverse
 '''
 
-class Reverse(tako.Declaration):
+class Reverse(octako.Declaration):
     '''
     Reverse operation for a particular nerve
     The nerve should be defined within the 
@@ -60,7 +60,7 @@ class DeclarationReverse(Reverse):
     The reverse neuron for a Declaration neuron
     '''
     def __init__(self, decl, dynamic):
-        assert isinstance(decl, tako.Declaration)
+        assert isinstance(decl, octako.Declaration)
         super().__init__(decl, dynamic)
 
     def define(self, x):
@@ -77,10 +77,9 @@ def _NeuronRev(self, dynamic):
     return Reverse(self, dynamic)
 
 
-
 # nn.Linear.d().rev()
 # what if d is already defined?
 
 
-tako.Neuron.rev = _NeuronRev
-tako.Declaration.rev = _DeclRev
+octako.Neuron.rev = _NeuronRev
+octako.Declaration.rev = _DeclRev

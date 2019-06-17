@@ -1,5 +1,5 @@
-import tako.bot as bot
-import tako
+import octako.bot as bot
+import octako.core as tako
 
 
 class NeuronTest(tako.Noop):

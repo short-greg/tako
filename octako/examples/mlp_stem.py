@@ -3,36 +3,36 @@
 Note: This example depends on Torch
 '''
 
-import tako
+# import octako
 import torch
 from tako import decl as D
-import tako.ref as ref
+# import octako.ref as ref
 from tako.ref import r
 from torch import nn
 from tako import in_, nil_
 from tako import flow
 
 
-criterion_neuron = tako.Stem(
-    tako.OpNeuron.d(tako.arg[0], tako.UnpackStimulator.d())
+criterion_neuron = octako.Stem(
+    octako.OpNeuron.d(octako.arg[0], octako.UnpackStimulator.d())
 )
 
 
-update_stem = tako.Stem(
+update_stem = octako.Stem(
     flow.Diverge(
-            r(tako.arg[0]), None
+            r(octako.arg[0]), None
         ) >> 
-        criterion_neuron(tako.arg[1])) >> 
+        criterion_neuron(octako.arg[1]) >> 
         # output the loss but execute
         # backward
         flow.Multi(
                 None,
                 ref.emission.backward()
             )[0]
-)
+        )
 
 
-class MNISTMLP(tako.Tako):
+class MNISTMLP(octako.Tako):
     '''
     
     '''

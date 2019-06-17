@@ -1,8 +1,8 @@
-import tako
-from tako import flow
+import octako.core as tako
+from octako import flow
 import pytest
-from tako import bot
-from tako import ref
+from octako import bot
+from octako import ref
 
 
 class NeuronTest(tako.Noop):

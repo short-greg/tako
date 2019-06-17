@@ -1,5 +1,5 @@
-import tako
-from tako import to_neuron
+import octako.core as tako
+from octako import to_neuron
 
 
 '''
