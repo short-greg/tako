@@ -87,6 +87,16 @@ class Neuron(object):
         '''
         assert self.outgoing is None, 'There can only be one incoming flow for a flow'
         self.outgoing = other
+    
+    def replace(self, replace_with):
+        if self.incoming:
+            self.incoming.outgoing = replace_with
+            replace_with.incoming = self.incoming
+        if self.outgoing:
+            self.outgoing.incoming = replace_with
+            replace_with.outgoing = self.outgoing
+        self.incoming = None
+        self.outgoing = None
 
     def __call__(self, x, wh):
         '''
@@ -310,6 +320,24 @@ def _update_arg(arg, *args, **kwargs):
         return arg
 
 
+class ArgNeuron(Neuron):
+    
+    def __init__(self, arg):
+        super().__init__()
+        print('Created Arg neuron')
+        self._arg = arg
+    
+    def update_args(self, args, kwargs):
+        key = self._arg.key
+        if type(key) is int and 0 <= key < len(args):
+            self.replace(args[self._arg.key])
+        elif key in kwargs:
+            self.replace(kwargs[self._arg.key])
+    
+    def spawn(self):
+        return ArgNeuron(self._arg)
+
+
 class Arg(object):
     '''
     Args are used in stems to provide variable
@@ -322,6 +350,9 @@ class Arg(object):
     @property
     def key(self):
         return self._key
+    
+    def __neuron__(self):
+        return ArgNeuron(self)
     
     def update(self, *args, **kwargs):
         if type(self._key) == int:

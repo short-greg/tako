@@ -29,8 +29,8 @@ class TestNeuron(object):
             neuron(1, None)
     
     def test_spawn(self):
-        neuron = tako.Neuron().spawn()
-        assert type(neuron) == tako.Neuron
+        with pytest.raises(NotImplementedError):
+            tako.Neuron().spawn()
     
 
 class TestNoop(object):
@@ -93,9 +93,17 @@ class TestArg(object):
     def test_arg_creation_with_key(self):
         
         arg = tako.arg.x
-        assert arg.key == 'x', (
-            'The key for the arg should be "x".'
-        )
+        assert arg.key == 'x'
+
+    def test_arg_to_neuron(self):
+        
+        arg = tako.arg.x
+        assert type(tako.to_neuron(arg)) == tako.ArgNeuron
+
+    def test_arg_cat(self):
+        
+        strand = tako.in_ >> tako.arg.x >> tako.out_
+        assert type(strand[1]) == tako.ArgNeuron
 
 
 class TestDeclaration(object):
@@ -168,7 +176,7 @@ class TestStem(object):
         def op(x):
             return x + 1
 
-        stem = tako.Stem(tako.OpNeuron, op)
+        stem = tako.Stem(tako.OpNeuron(op))
         neuron = stem()
 
         assert neuron.forward(1) == 2, (
@@ -179,7 +187,7 @@ class TestStem(object):
         def op(x):
             return x + 1
 
-        stem = tako.Stem(tako.OpNeuron, tako.arg[0])
+        stem = tako.Stem(tako.OpNeuron.d(tako.arg[0]))
         neuron = stem(op)
 
         assert neuron.forward(1) == 2, (
@@ -190,7 +198,7 @@ class TestStem(object):
         def op(x):
             return x + 1
 
-        stem = tako.Stem(tako.OpNeuron, tako.arg.k)
+        stem = tako.Stem(tako.OpNeuron.d(tako.arg.k))
         neuron = stem(k=op)
 
         assert neuron.forward(1) == 2, (
@@ -206,8 +214,18 @@ class TestStem(object):
         add_one = add_x(1)
         add_two = add_x(2)
         x = 1
-        assert add_one(x) == 2
-        assert add_two(x) == 2
+        assert add_one(x) == x + 1
+        assert add_two(x) == x + 2
+
+
+    def test_stem_creation_with_variable_process(self):
+        PStream = tako.Stem(
+            tako.to_neuron(lambda x: x + 1) >>
+            tako.arg[0] >>
+            (lambda x: x - 1)
+            )
+        stream = PStream(tako.to_neuron(lambda x: x + 2))
+        assert stream(0) == 2
 
 
 class TestEmit(object):

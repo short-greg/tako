@@ -1,9 +1,14 @@
 from octako.core import Neuron, to_neuron, Strand, Arm
 from octako import ref
 
-
+# improve upon this to remove the side effects
 def to_strand(neuron):
-    return Strand([neuron]).enclose()
+    if isinstance(neuron, Strand):
+        strand = neuron
+    else:
+        strand = Strand([neuron])
+        
+    return strand.enclose()
 
 
 class Flow(Neuron):
@@ -393,7 +398,7 @@ class Onto(_Merge):
 
     def spawn(self):
         return Onto(*[strand.spawn() for strand in self._to_merge])
-    
+
 
 class Under(_Merge):
     """

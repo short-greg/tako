@@ -118,7 +118,6 @@ class Call(Bot):
     def _visit(self, neuron):
         result = object.__getattribute__(neuron, self._func_name)(*self._args, **self._kwargs)
         self._results[neuron] = self.process(result)
-        print(self._results[neuron])
     
     def spawn(self):
         return Call(

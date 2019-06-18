@@ -34,13 +34,13 @@ class Neuron(object):
         Visit this neuron with a bot
         :param Bot bot: The bot to visit the neuron with
         '''
-        return bot(self)
+        bot(self)
     
     def spawn(self):
         '''
         Spawn a new neuron of this type with the same member variables
         '''
-        return Neuron()
+        raise NotImplementedError
     
     def bot_forward(self, bot):
         '''
@@ -200,6 +200,9 @@ class _InCreator(object):
     '''
     def __rshift__(self, other):
         return _In() >> other
+    
+    def __neuron__(self):
+        return _In()
 
 
 # used for starting a strand
@@ -211,7 +214,13 @@ class _OutCreator(object):
     Convenience class to create an _Out neuron using out_
     '''
     def __rshift__(self, other):
-        return _Out() >> other
+        raise Exception(
+            'Out neuron must be the final neuron.'
+            )
+
+    def __neuron__(self):
+        return _Out()
+
 
 # used for ending a strand
 out_ = _OutCreator()
@@ -223,6 +232,9 @@ class _NilCreator(object):
     '''
     def __rshift__(self, other):
         return _Nil() >> other
+
+    def __neuron__(self):
+        return _Nil()
 
 
 # object used to create _Nil neurons
@@ -356,7 +368,6 @@ class Declaration(Neuron):
         
     def define(self, x=None):
         '''
-        
         '''
         if self.defined is not None:
             return self.defined
@@ -375,7 +386,7 @@ class Declaration(Neuron):
         self.outgoing = None
 
     def __call__(self, x, wh=None):
-        if not self._dynamic and not self.defined:
+        if not self._dynamic and self.defined is None:
             neuron = self.define(x)
             self._replace(neuron)
             return neuron(x, wh)
@@ -383,6 +394,14 @@ class Declaration(Neuron):
             return self.defined(x, wh)
         else:
             return self.define(x)(x, wh)
+
+    def spawn(self):
+        return Declaration(
+            self.module_cls, 
+            self._args,
+            self._kwargs,
+            self._dynamic
+            )
 
 
 def decl(cls, *args, **kwargs):
@@ -409,12 +428,13 @@ class Stem(object):
         updated_kwargs = {k: _update_arg(arg, kwargs) for k, arg in self._kwargs.items()}
         updated_args = [_update_arg(arg, *args, **kwargs) for arg in self._args]
 
+        spawned = self._cls.spawn()
         # need to use a bot to update it for 
-        bot.call.update_arg(
-            cond=lambda x: isinstance(x, Declaration),
-            args=(args, kwargs)
+        update_args = bot.call.update_args(
+            args, kwargs
             )
-        return self._cls(*updated_args, **updated_kwargs)
+        spawned.bot_forward(update_args)
+        return spawned
 
 
 class Emit(Neuron):
@@ -425,9 +445,6 @@ class Emit(Neuron):
     def __init__(self, to_emit):
         super().__init__()
         self._to_emit = to_emit
-
-    def spawn(self):
-        return Emit(self._to_emit)
 
     def inform(self, x=None, bot=None):
         assert x is None, (
@@ -440,6 +457,8 @@ class Emit(Neuron):
         assert x is None, 'Emit Neurons must not take an input.'
         return self._to_emit
 
+    def spawn(self):
+        return Emit(self._to_emit)
 
 def to_neuron(x):
     """
@@ -617,14 +636,12 @@ class Arm(Neuron):
         super().__init__()
         self.strand = strand.enclose()
 
-    def visit(self, bot):
-        if super().visit(bot):
-            self.strand.bot_forward(bot)
-            return True
-        return False
-
     def __call__(self, x, wh=None):
         return self.strand(x)
+        
+    def visit(self, bot):
+        super().visit(bot)
+        self.strand.bot_forward(bot)
 
     def spawn(self):
         return Arm(self.strand.spawn())
