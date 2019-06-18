@@ -238,6 +238,7 @@ class TestMulti(object):
             [2, 3]
         )
 
+
 class TestSwitch(object):
     
     def test_switch_initialization(self):
