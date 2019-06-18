@@ -1,4 +1,4 @@
-from octako import Neuron, to_neuron, Strand, Arm
+from octako.core import Neuron, to_neuron, Strand, Arm
 from octako import ref
 
 

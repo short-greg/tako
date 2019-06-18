@@ -1,4 +1,4 @@
-import octako as tako
+import octako.core as tako
 from octako import to_neuron
 
 

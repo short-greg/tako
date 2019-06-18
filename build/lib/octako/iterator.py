@@ -1,6 +1,6 @@
 import numpy as np
 import math
-import octako
+from octako import core as tako
 
 
 class Accessor(object):
@@ -111,7 +111,7 @@ class MetaAccessor(object):
         raise NotImplementedError
 
 
-class AccessorNeuron(octako.Neuron):
+class AccessorNeuron(tako.Neuron):
     '''
     Wraps the Accessor object into a neuron
     and outputs it when spawned
@@ -130,7 +130,7 @@ class AccessorNeuron(octako.Neuron):
         return AccessorNeuron(self._accessor)
 
 
-class MetaAccessorNeuron(octako.Neuron):
+class MetaAccessorNeuron(tako.Neuron):
     '''
     Wraps the MetaAccessor object into a neuron
     and outputs it when spawned
@@ -275,7 +275,7 @@ class Iter(object):
         return Iter(self._data)
 
 
-class ToIter(octako.Neuron):
+class ToIter(tako.Neuron):
     '''
     Covert an accessor into an iterator
     '''
@@ -294,7 +294,7 @@ class ToIter(octako.Neuron):
         return ToIter()
 
 
-class Iterate(octako.Neuron):
+class Iterate(tako.Neuron):
     '''
     Neuron that iterates on the iterator 
     that is passed in until the iterator

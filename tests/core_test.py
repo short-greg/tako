@@ -196,6 +196,18 @@ class TestStem(object):
         assert neuron.forward(1) == 2, (
             'The value should become 2.'
         )
+    
+    def test_stem_creation_with_declaration(self):
+        from octako import flow
+        add_x = tako.Stem(
+            tako.in_ >> flow.Onto(tako.Emit.d(tako.arg[0])) >> 
+            (lambda x: x[0] + x[1]) >> tako.out_
+        )
+        add_one = add_x(1)
+        add_two = add_x(2)
+        x = 1
+        assert add_one(x) == 2
+        assert add_two(x) == 2
 
 
 class TestEmit(object):
