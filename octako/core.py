@@ -324,7 +324,6 @@ class ArgNeuron(Neuron):
     
     def __init__(self, arg):
         super().__init__()
-        print('Created Arg neuron')
         self._arg = arg
     
     def update_args(self, args, kwargs):
