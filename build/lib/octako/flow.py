@@ -243,10 +243,10 @@ class Repeat(Flow):
         while True:
             cur_result = self._strand(x, wh)
             if self._output_all:
-                all_results.append(result)
+                all_results.append(cur_result[1])
                 result = all_results
             else:
-                result = cur_result
+                result = cur_result[1]
             
             if cur_result[0] == self._break_on:
                 break

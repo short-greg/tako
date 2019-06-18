@@ -329,13 +329,13 @@ class Cases(Flow):
     DEFAULT_PATH = -1
     NO_OUTPUT = None
     
-    def __init__(self, cases, default=None, break_on=True):
+    def __init__(self, cases, default=None, pass_on=True):
         super().__init__()
         self._strands = [to_strand(neuron) for neuron in cases]
         self._default = default
         if self._default is not None:
             self._default = to_neuron(self._default)
-        self._break_on = break_on
+        self._pass_on = pass_on
 
     def bot_down(self, bot):
         for strand in self._strands:
@@ -345,7 +345,7 @@ class Cases(Flow):
     def __call__(self, x, wh=None):
         for i, strand in enumerate(self._strands):
             output_ = strand(x, wh)
-            if output_[0] == self._break_on:
+            if output_[0] == self._pass_on:
                 return i, output_[1]
         
         if self._default is not None:
@@ -356,7 +356,7 @@ class Cases(Flow):
         return Cases(
             cases=[strand.spawn() for strand in self._strands], 
             default=self._default.spawn() if self._default is not None else None,
-            break_on=self._break_on
+            pass_on=self._pass_on
         )
 
 
