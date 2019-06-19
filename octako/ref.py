@@ -405,8 +405,9 @@ class Call(InCall):
         """
         @param input[0] - function to call
         @param input[1] - input
+        @param input[2] - calling object
         """
-        return super().__call__((self._f, x), wh)
+        return super().__call__([self._f, x, None], wh)
     
     def spawn(self):
         return Call(self._f, *self._args, **self._kwargs)

@@ -741,21 +741,22 @@ class Tako(object, metaclass=_TakoType):
         in a similar manner methods with overrideing
         '''
         def __init__(
-            self, arms, cls=None, owner=None, 
-            parent=None
+            self, arms, cls=None
         ):
             """
             Need to replicate the neurons
             """
             self._arms = {}
-            self._parent = parent
-            self._owner = owner
+            self._parent = None
+            self._owner = None
+            # self._parent = parent
+            # self._owner = owner
             self._cls = cls
             for k, arm in arms.items():
                 copied = arm.spawn()
                 self._arms[k] = copied
-            self.set_owner(owner)
-            self.set_parent(parent)
+            # self.set_owner(owner)
+            # self.set_parent(parent)
         
         def set_owner(self, owner):
             self._owner = owner
@@ -796,11 +797,19 @@ class Tako(object, metaclass=_TakoType):
     def __new__(cls):
         instance = object.__new__(cls)
         cur = cls
-        instance.__armc__ = Tako._TakoAttr({}, instance, instance)
+        instance.__armc__ = Tako._TakoAttr({}, instance)
         prev_arm_controller = instance.__armc__
+        
+        # need to set owner and parent in here
+        # because a neuronref in the stream may rely on a 
+        # the parent being set for a subclass/instance
+        # when setting the owner
+        prev_arm_controller.set_owner(instance)
+
         while True:
-            cur_arm_controller = cls._TakoAttr(cur.__arms__, cur, instance)
+            cur_arm_controller = cls._TakoAttr(cur.__arms__, cur)
             prev_arm_controller.set_parent(cur_arm_controller)
+            cur_arm_controller.set_owner(instance)
             prev_arm_controller = cur_arm_controller
 
             cur = cur.__base__
