@@ -754,6 +754,8 @@ class Tako(object, metaclass=_TakoType):
             for k, arm in arms.items():
                 copied = arm.spawn()
                 self._arms[k] = copied
+            self.set_owner(owner)
+            self.set_parent(parent)
         
         def set_owner(self, owner):
             self._owner = owner
@@ -767,7 +769,7 @@ class Tako(object, metaclass=_TakoType):
             '''
             self._parent = parent
             for _, arm in self._arms.items():
-                arm.bot_forward(bot.call.set_parent(parent))
+                arm.bot_forward(bot.call.set_super(parent))
     
         def __getattr__(self, k):
             return getattr(self._cls, k)

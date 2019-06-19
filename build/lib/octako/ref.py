@@ -1,5 +1,7 @@
 import octako.core as tako
 from octako import to_neuron
+import types
+import inspect
 
 
 '''
@@ -47,8 +49,8 @@ class Attr(object):
         self._key = key
         
     def get(self, obj):
-        print(obj, self._key)
-        return object.__getattribute__(obj, self._key)
+        return getattr(obj, self._key)
+        # return obj.__getattribute__(self._key)
 
 
 class Idx(object):
@@ -92,14 +94,14 @@ class RefBase(tako.Neuron):
         :param val: the base value to retrieve from
         :param x: The input into the neuron
         '''
+        prev_prev_val = None
         prev_val = val
-        print('Val: ', val)
         for p in path:
             if type(p) == InCall:
-                val = p([prev_val, x])
+                val = p([prev_val, x, prev_prev_val])
             else:
-                print('Prev Val: ', prev_val)
                 val = p.get(prev_val)
+            prev_prev_val = prev_val
             prev_val = val
         return val
   
@@ -216,10 +218,8 @@ class SuperRef(RefBase):
         Child.__init__(self)
 
     def set_super(self, super_):
-        print('Setting super ', super_, self._super_)
         if Child.set_super(self, super_):
             self._base_val = super_
-            print('Set base_val ', super_)
             for p in self._path:
                 if isinstance(p, InCall):
                     p.set_super(super_)
@@ -246,7 +246,6 @@ class ValRef(RefBase):
         @param args - Args to pass if a function  {} or nil
         (if args is nil will not call)
         '''
-        print('Setting val ', val, path)
         super().__init__(path)
         self._base_val = val
     
@@ -261,6 +260,8 @@ class NeuronRef(tako.Neuron, Owned, Child):
     def __init__(self, ref):
         super().__init__()
         self._ref = tako.to_neuron(ref)
+        Owned.__init__(self)
+        Child.__init__(self)
     
     @property
     def ref_key(self, x=None):
@@ -271,7 +272,7 @@ class NeuronRef(tako.Neuron, Owned, Child):
         return neuron(x, wh)
     
     def set_super(self, super_):
-        if super().set_super(super_):
+        if Child.set_super(self, super_):
             if isinstance(self._ref, Child):
                 if not self._ref.set_super(super_):
                     raise Exception(
@@ -281,7 +282,7 @@ class NeuronRef(tako.Neuron, Owned, Child):
         return False
 
     def set_owner(self, owner):
-        if super().set_owner(owner):
+        if Owned.set_owner(self, owner):
             if isinstance(self._ref, Owned):
                 if not self._ref.set_owner(owner):
                     raise Exception(
@@ -293,8 +294,10 @@ class NeuronRef(tako.Neuron, Owned, Child):
     def get_ref(self, x=None):
         return self._ref(x)
 
-    def bot_forward(self):
-        return [self._ref]
+    def visit(self, bot):
+        super().visit(bot)
+        neuron = self.get_ref(self._ref)
+        neuron.bot_forward(bot)
 
     def spawn(self):
         return NeuronRef(self._ref)
@@ -340,12 +343,23 @@ class InCall(tako.Neuron, Owned, Child):
 
     def __call__(self, x, wh=None):
         """
-        @param input[0] - function to call
-        @param input[1] - input
+        @param x[0] - function to call
+        @param x[1] - input
         """
         args_output = [self._output_arg(arg, x) for arg in self._args]
         kwargs_output = {k: self._output_arg(arg, x) for k, arg in self._kwargs.items()}
-        return x[0](*args_output, **kwargs_output)
+        
+        if type(x[0]) == types.MethodType or x[2] is None:
+            return x[0](*args_output, **kwargs_output)
+        else:
+            args = inspect.getfullargspec(x[0])
+            if len(args[0]) > 0 and args[0][0] == 'self':
+                # kind of a hack to deal with calling methods in
+                # the super class. It can be assumed though
+                # that if x[2] is not None then a 
+                return x[0](x[2], *args_output, **kwargs_output)
+            else:
+                return x[0](*args_output, **kwargs_output)
 
     def set_super(self, super_):
         def _set_arg_super(arg):
