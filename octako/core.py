@@ -106,7 +106,10 @@ class Neuron(object):
         :param warehouse wh: a warehouse to pass through the network (can be used by
         neurons that store info or probe the bot for info).
         '''
-        raise NotImplementedError
+        raise NotImplementedError(
+            'Call operator has not been implemented for ',
+            type(self)
+        )
 
 
 class _In(Neuron):
@@ -325,16 +328,46 @@ class ArgNeuron(Neuron):
     def __init__(self, arg):
         super().__init__()
         self._arg = arg
+        self._replaced_with = None
     
     def update_args(self, args, kwargs):
         key = self._arg.key
         if type(key) is int and 0 <= key < len(args):
             self.replace(args[self._arg.key])
+            self._replaced_with = args[self._arg.key]
         elif key in kwargs:
             self.replace(kwargs[self._arg.key])
-    
+            self._replaced_with = kwargs[self._arg.key]
+
     def spawn(self):
         return ArgNeuron(self._arg)
+
+    def bot_forward(self, bot):
+        '''
+        Pass a bot forward through the network
+        :param Bot bot: The bot to pass forward
+        '''  
+        already_replaced = self._replaced_with = None
+        self.visit(bot)
+        if not already_replaced and self._replaced_with is not None:
+            neuron = self._replaced_with
+        else:
+            neuron = self
+        if neuron.outgoing is not None:
+            neuron.outgoing.bot_forward(bot)
+
+    def __call__(self, x, wh):
+        '''
+        Execute the operation specified by the neuron (In the base neuron there is no
+        operation).
+        :param x: The input into the neuron (can be anything)
+        :param warehouse wh: a warehouse to pass through the network (can be used by
+        neurons that store info or probe the bot for info).
+        '''
+        raise NotImplementedError(
+            'Call operator has not been implemented for ',
+            type(self), ' with arg ', self._arg
+        )
 
 
 class Arg(object):
@@ -358,6 +391,12 @@ class Arg(object):
             return args[self._key]
         else:
             return kwargs[self._key]
+
+    def spawn(self):
+        return Arg(self._key)
+    
+    def __repr__(self):
+        return self._key
 
 
 class _Arg(object):

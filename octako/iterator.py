@@ -94,7 +94,7 @@ class MetaAccessor(object):
         raise NotImplementedError
     
     def __neuron__(self):
-        return MetaAccessorNeuron()
+        return MetaAccessorNeuron(self)
 
     @property
     def data(self):
@@ -121,9 +121,10 @@ class AccessorNeuron(tako.Neuron):
         super().__init__()
         self._accessor = accessor
     
-    def __call__(self, x, bot=None):
+    def __call__(self, x=None, bot=None):
         accessor = self._accessor.spawn()
-        accessor.data = x
+        if x is not None:
+            accessor.data = x
         return accessor
     
     def spawn(self):
@@ -170,7 +171,7 @@ class Shuffle(MetaAccessor):
         '''
         self._data = data
         if data is not None:
-            self._order = np.random.permutation(len(data))
+            self._order = np.random.permutation(data)
         else:
             self._order = []
 
@@ -309,11 +310,11 @@ class Iterate(tako.Neuron):
         :param bot: StoreBot
         '''
         if not x.at_end():
-            result = x.get()
+            result = True, x.get()
             x.adv()
         else:
             result = self.AT_END
-        return True, result
+        return result
 
     def spawn(self):
         return Iterate()
