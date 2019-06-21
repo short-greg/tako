@@ -349,17 +349,20 @@ class InCall(tako.Neuron, Owned, Child):
         args_output = [self._output_arg(arg, x) for arg in self._args]
         kwargs_output = {k: self._output_arg(arg, x) for k, arg in self._kwargs.items()}
         
-        if type(x[0]) == types.MethodType or x[2] is None:
+        # not sure if i need this
+        if type(x[0]) == types.MethodType and x[2] and isinstance(x[2], type):
+            return x[0](x[2], *args_output, **kwargs_output)  
+        elif type(x[0]) == types.MethodType or x[2] is None:
             return x[0](*args_output, **kwargs_output)
         else:
-            args = inspect.getfullargspec(x[0])
-            if len(args[0]) > 0 and args[0][0] == 'self':
+            # args = inspect.getfullargspec(x[0])
+            # if len(args[0]) > 0 and args[0][0] == 'self':
                 # kind of a hack to deal with calling methods in
                 # the super class. It can be assumed though
                 # that if x[2] is not None then a 
-                return x[0](x[2], *args_output, **kwargs_output)
-            else:
-                return x[0](*args_output, **kwargs_output)
+            #    return x[0](x[2], *args_output, **kwargs_output)
+            # else:
+            return x[0](*args_output, **kwargs_output)
 
     def set_super(self, super_):
         def _set_arg_super(arg):
@@ -405,7 +408,6 @@ class Call(InCall):
         """
         @param input[0] - function to call
         @param input[1] - input
-        @param input[2] - calling object
         """
         return super().__call__([self._f, x, None], wh)
     
